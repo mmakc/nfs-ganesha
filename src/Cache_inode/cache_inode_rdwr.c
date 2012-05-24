@@ -100,14 +100,14 @@ cache_inode_rdwr(cache_entry_t *entry,
      /* Error return from FSAL calls */
      fsal_status_t fsal_status = {0, 0};
      /* Required open mode to successfully read or write */
-     fsal_openflags_t openflags = FSAL_O_CLOSED;
-     fsal_openflags_t loflags;
+/*      fsal_openflags_t openflags = FSAL_O_CLOSED; */
+/*      fsal_openflags_t loflags; */
      /* TRUE if we have taken the content lock on 'entry' */
      bool_t content_locked = FALSE;
      /* TRUE if we have taken the attribute lock on 'entry' */
      bool_t attributes_locked = FALSE;
      /* TRUE if we opened a previously closed FD */
-     bool_t opened = FALSE;
+/*      bool_t opened = FALSE; */
      /* We need this until Jim Lieb redoes the FSAL interface.  But
         there's no reason to make users of cache_inode deal with it. */
      fsal_seek_t seek_descriptor = {
@@ -116,11 +116,11 @@ cache_inode_rdwr(cache_entry_t *entry,
      };
 
      /* Set flags for a read or write, as appropriate */
-     if (io_direction == CACHE_INODE_READ) {
-          openflags = FSAL_O_RDONLY;
-     } else {
-          openflags = FSAL_O_WRONLY;
-     }
+/*      if (io_direction == CACHE_INODE_READ) { */
+/*           openflags = FSAL_O_RDONLY; */
+/*      } else { */
+/*           openflags = FSAL_O_WRONLY; */
+/*      } */
 
      /* IO is done only on REGULAR_FILEs */
      if (entry->type != REGULAR_FILE) {
@@ -151,7 +151,7 @@ cache_inode_rdwr(cache_entry_t *entry,
 
                pthread_rwlock_wrlock(&entry->attr_lock);
                attributes_locked = TRUE;
-               cache_inode_set_time_current(&entry->attributes.mtime);
+               cache_inode_set_time_current(&entry->obj_handle->attributes.mtime);
                *bytes_moved = io_size;
           } else {
                if ((entry->object.file.unstable_data.offset < offset) &&
@@ -163,7 +163,7 @@ cache_inode_rdwr(cache_entry_t *entry,
 
                     pthread_rwlock_wrlock(&entry->attr_lock);
                     attributes_locked = TRUE;
-                    cache_inode_set_time_current(&entry->attributes.mtime);
+                    cache_inode_set_time_current(&entry->obj_handle->attributes.mtime);
                     *bytes_moved = io_size;
                } else {
                     /* Go back to stable writes */
@@ -186,27 +186,30 @@ cache_inode_rdwr(cache_entry_t *entry,
              if we need to open or close a file descriptor. */
           pthread_rwlock_rdlock(&entry->content_lock);
           content_locked = TRUE;
-          loflags = entry->object.file.open_fd.openflags;
-          if ((!cache_inode_fd(entry)) ||
-              (loflags && loflags != FSAL_O_RDWR && loflags != openflags)) {
-               pthread_rwlock_unlock(&entry->content_lock);
-               pthread_rwlock_wrlock(&entry->content_lock);
-               loflags = entry->object.file.open_fd.openflags;
-               if ((!cache_inode_fd(entry)) ||
-                   (loflags && loflags != FSAL_O_RDWR &&
-                    loflags != openflags)) {
-                    if (cache_inode_open(entry,
-                                         client,
-                                         openflags,
-                                         context,
-                                         CACHE_INODE_FLAG_CONTENT_HAVE |
-                                         CACHE_INODE_FLAG_CONTENT_HOLD,
-                                         status) != CACHE_INODE_SUCCESS) {
-                         goto out;
-                    }
-                    opened = TRUE;
-               }
-          }
+/** @TODO this caching logic moves to the fsal.  We assume that
+ *  it will do an open itself if needed.
+ */
+/*           loflags = entry->object.file.open_fd.openflags; */
+/*           if ((!cache_inode_fd(entry)) || */
+/*               (loflags && loflags != FSAL_O_RDWR && loflags != openflags)) { */
+/*                pthread_rwlock_unlock(&entry->content_lock); */
+/*                pthread_rwlock_wrlock(&entry->content_lock); */
+/*                loflags = entry->object.file.open_fd.openflags; */
+/*                if ((!cache_inode_fd(entry)) || */
+/*                    (loflags && loflags != FSAL_O_RDWR && */
+/*                     loflags != openflags)) { */
+/*                     if (cache_inode_open(entry, */
+/*                                          client, */
+/*                                          openflags, */
+/*                                          context, */
+/*                                          CACHE_INODE_FLAG_CONTENT_HAVE | */
+/*                                          CACHE_INODE_FLAG_CONTENT_HOLD, */
+/*                                          status) != CACHE_INODE_SUCCESS) { */
+/*                          goto out; */
+/*                     } */
+/*                     opened = TRUE; */
+/*                } */
+/*           } */
 
           /* Call FSAL_read or FSAL_write */
           if (io_direction == CACHE_INODE_READ) {
@@ -229,8 +232,9 @@ cache_inode_rdwr(cache_entry_t *entry,
 
                if (stable == CACHE_INODE_SAFE_WRITE_TO_FS) {
                     fsal_status
-                         = FSAL_commit(&(entry->object.file.open_fd.fd),
-                                  offset, io_size);
+			    = entry->obj_handle->ops->commit(entry->obj_handle,
+							     offset,
+							     io_size);
                }
           }
 
@@ -256,14 +260,15 @@ cache_inode_rdwr(cache_entry_t *entry,
                }
 
                if ((fsal_status.major != ERR_FSAL_NOT_OPENED)
-                   && (entry->object.file.open_fd.openflags
-                       != FSAL_O_CLOSED)) {
+                   /* && (entry->object.file.open_fd.openflags */
+/*                        != FSAL_O_CLOSED) */) {
                     cache_inode_status_t cstatus;
                     LogFullDebug(COMPONENT_CACHE_INODE,
                                  "cache_inode_rdwr: CLOSING entry %p",
                                  entry);
                     pthread_rwlock_unlock(&entry->content_lock);
                     pthread_rwlock_wrlock(&entry->content_lock);
+
                     cache_inode_close(entry,
                                       client,
                                       (CACHE_INODE_FLAG_REALLYCLOSE |
@@ -287,17 +292,17 @@ cache_inode_rdwr(cache_entry_t *entry,
                        "bytes_moved=%zu, offset=%"PRIu64,
                        io_size, *bytes_moved, offset);
 
-          if (opened) {
-               if (cache_inode_close(entry, client,
-                                     CACHE_INODE_FLAG_CONTENT_HAVE |
-                                     CACHE_INODE_FLAG_CONTENT_HOLD,
-                                     status) != CACHE_INODE_SUCCESS) {
-                    LogEvent(COMPONENT_CACHE_INODE,
-                             "cache_inode_rdwr: cache_inode_close = %d",
-                             *status);
-                    goto out;
-               }
-          }
+/*           if (opened) { */
+/*                if (cache_inode_close(entry, client, */
+/*                                      CACHE_INODE_FLAG_CONTENT_HAVE | */
+/*                                      CACHE_INODE_FLAG_CONTENT_HOLD, */
+/*                                      status) != CACHE_INODE_SUCCESS) { */
+/*                     LogEvent(COMPONENT_CACHE_INODE, */
+/*                              "cache_inode_rdwr: cache_inode_close = %d", */
+/*                              *status); */
+/*                     goto out; */
+/*                } */
+/*           } */
 
           if (content_locked) {
                pthread_rwlock_unlock(&entry->content_lock);
@@ -309,13 +314,12 @@ cache_inode_rdwr(cache_entry_t *entry,
      attributes_locked = TRUE;
      if (io_direction == CACHE_INODE_WRITE) {
           if ((*status = cache_inode_refresh_attrs(entry,
-                                                   context,
                                                    client))
               != CACHE_INODE_SUCCESS) {
                goto out;
           }
      } else {
-          cache_inode_set_time_current(&entry->attributes.atime);
+          cache_inode_set_time_current(&entry->obj_handle->attributes.atime);
      }
      pthread_rwlock_unlock(&entry->attr_lock);
      attributes_locked = FALSE;
