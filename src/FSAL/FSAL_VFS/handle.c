@@ -83,9 +83,7 @@ static struct vfs_fsal_obj_handle *alloc_handle(struct file_handle *fh,
 						struct fsal_export *exp_hdl)
 {
 	struct vfs_fsal_obj_handle *hdl;
-	pthread_mutexattr_t attrs;
 	fsal_status_t st;
-	int retval;
 
 	hdl = malloc(sizeof(struct vfs_fsal_obj_handle) +
 		     sizeof(struct file_handle) +
@@ -110,8 +108,6 @@ static struct vfs_fsal_obj_handle *alloc_handle(struct file_handle *fh,
 	memcpy(hdl->handle, fh,
 	       sizeof(struct file_handle) + fh->handle_bytes);
 	hdl->fd = -1;  /* no open on this yet */
-	hdl->obj_handle.type = posix2fsal_type(stat->st_mode);
-	hdl->obj_handle.export = exp_hdl;
 	hdl->obj_handle.attributes.asked_attributes
 		= exp_hdl->ops->fs_supported_attrs(exp_hdl);
 	hdl->obj_handle.attributes.supported_attributes
@@ -123,24 +119,10 @@ static struct vfs_fsal_obj_handle *alloc_handle(struct file_handle *fh,
 		free(hdl);  /* elvis has left the building */
 		return NULL;
 	}		
-	hdl->obj_handle.refs = 1;  /* we start out with a reference */
-	hdl->obj_handle.ops = &obj_ops;
-	init_glist(&hdl->obj_handle.handles);
-	pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_ADAPTIVE_NP);
-	pthread_mutex_init(&hdl->obj_handle.lock, &attrs);
+	if(!fsal_obj_handle_init(&hdl->obj_handle, &obj_ops, exp_hdl,
+	                         posix2fsal_type(stat->st_mode)))
+                return hdl;
 
-	/* lock myself before attaching to the export.
-	 * keep myself locked until done with creating myself.
-	 */
-
-	pthread_mutex_lock(&hdl->obj_handle.lock);
-	retval = fsal_attach_handle(exp_hdl, &hdl->obj_handle.handles);
-	if(retval != 0)
-		goto errout; /* seriously bad */
-	pthread_mutex_unlock(&hdl->obj_handle.lock);
-	return hdl;
-
-errout:
 	hdl->obj_handle.ops = NULL;
 	pthread_mutex_unlock(&hdl->obj_handle.lock);
 	pthread_mutex_destroy(&hdl->obj_handle.lock);
@@ -231,9 +213,6 @@ static fsal_status_t lookup(struct fsal_obj_handle *parent,
 	if(hdl != NULL) {
 		*handle = &hdl->obj_handle;
 	} else {
-		if(link_content != NULL) {
-			free(link_content);
-		}
 		fsal_error = ERR_FSAL_NOMEM;
 		*handle = NULL; /* poison it */
 		goto errout;
@@ -750,8 +729,8 @@ static fsal_status_t readsymlink(struct fsal_obj_handle *obj_hdl,
 	       myself->link_content,
 	       myself->link_size);
 
-out:
 	*link_len = myself->link_size;
+out:
 	ReturnCode(fsal_error, retval);	
 }
 
@@ -911,9 +890,9 @@ static fsal_status_t read_dirents(struct fsal_obj_handle *dir_hdl,
 		}
 	} while(nread > 0);
 
+	*eof = nread == 0 ? TRUE : FALSE;
 done:
 	close(dirfd);
-	*eof = nread == 0 ? TRUE : FALSE;
 	
 out:
 	ReturnCode(fsal_error, retval);	
