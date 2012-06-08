@@ -189,6 +189,7 @@ int fsal_obj_handle_init(struct fsal_obj_handle *obj,
 	obj->export = exp;
         obj->type = type;
 	init_glist(&obj->handles);
+	pthread_mutexattr_init(&attrs);
 	pthread_mutexattr_settype(&attrs, PTHREAD_MUTEX_ADAPTIVE_NP);
 	pthread_mutex_init(&obj->lock, &attrs);
 
