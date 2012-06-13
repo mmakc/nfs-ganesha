@@ -783,11 +783,6 @@ lru_thread(void *arg __attribute__((unused)))
                                 (lru = glist_first_entry(&LRU_1[lane].lru.q,
                                                          cache_inode_lru_t,
                                                          q))) {
-                              cache_inode_status_t cache_status
-                                   = CACHE_INODE_SUCCESS;
-                              cache_entry_t *entry
-                                   = container_of(lru, cache_entry_t, lru);
-
                               /* We currently hold the lane queue
                                  fragment mutex.  Due to lock
                                  ordering, we are forbidden from
@@ -824,19 +819,6 @@ lru_thread(void *arg __attribute__((unused)))
                                    continue;
                               }
 
-                              if (cache_inode_fd(entry)) {
-                                   cache_inode_close(
-                                        entry,
-                                        &lru_client,
-                                        CACHE_INODE_FLAG_REALLYCLOSE,
-                                        &cache_status);
-                                   if (cache_status != CACHE_INODE_SUCCESS) {
-                                        LogCrit(COMPONENT_CACHE_INODE_LRU,
-                                                "Error closing file in "
-                                                "LRU thread.");
-                                   } else
-                                     ++closed;
-                              }
                               /* Move the entry to L2 whatever the
                                  result of examining it.*/
                               lru_move_entry(lru, LRU_ENTRY_L2,

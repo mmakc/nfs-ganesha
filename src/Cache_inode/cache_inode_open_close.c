@@ -59,43 +59,6 @@
 #include <assert.h>
 
 /**
- * @brief Returns a file descriptor, if open
- *
- * This function returns the file descriptor stored in a cache entry,
- * if the cached file is open.
- *
- * @param entry [in] Entry for the file on which to operate
- *
- * @return A pointer to a file descriptor or NULL if the entry is
- * closed.
- */
-
-fsal_file_t *
-cache_inode_fd(cache_entry_t *entry)
-{
-     if (entry == NULL) {
-          return NULL;
-     }
-
-     if (entry->type != REGULAR_FILE) {
-          return NULL;
-     }
-
-/** @TODO loose scrap.  this is all done in the fsal now
- *  deprecate.
- */
-/*   if(((pentry->object.file.open_fd.openflags == FSAL_O_RDONLY) || */
-/*       (pentry->object.file.open_fd.openflags == FSAL_O_RDWR) || */
-/*       (pentry->object.file.open_fd.openflags == FSAL_O_WRONLY)) && */
-/*      (pentry->object.file.open_fd.fileno != 0)) */
-/*     { */
-/*       return &pentry->object.file.open_fd.fd; */
-/*     } */
-
-     return NULL;
-}
-
-/**
  * @brief Check if a file is available to write
  *
  * This function checks whether the given file is currently open in a
