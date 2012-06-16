@@ -99,13 +99,6 @@ cache_inode_truncate_impl(cache_entry_t *pentry,
   fsal_status = obj_hdl->ops->truncate(obj_hdl, length);
   if( !FSAL_IS_ERROR(fsal_status))
     fsal_status = obj_hdl->ops->getattrs(obj_hdl, pattr);
-/*   if (pentry->object.file.open_fd.openflags == FSAL_O_CLOSED) */
-/*     fd = NULL; */
-/*   else */
-/*     fd = &(pentry->object.file.open_fd.fd); */
-/*   fsal_status = FSAL_truncate(&pentry->handle, pcontext, length, */
-/*                               fd, /\* used by FSAL_GPFS *\/ */
-/*                               &pentry->attributes); */
 
   if(FSAL_IS_ERROR(fsal_status))
     {
