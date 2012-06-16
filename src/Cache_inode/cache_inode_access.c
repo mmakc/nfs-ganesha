@@ -79,7 +79,6 @@ cache_inode_access_sw(cache_entry_t *pentry,
                       cache_inode_status_t *pstatus,
                       int use_mutex)
 {
-     fsal_attrib_list_t attr;
      fsal_status_t fsal_status;
      fsal_accessflags_t used_access_type;
      struct fsal_obj_handle *pfsal_handle = pentry->obj_handle;
@@ -99,6 +98,8 @@ cache_inode_access_sw(cache_entry_t *pentry,
       * managed internally
       */
      if(access_type != FSAL_F_OK) {
+          fsal_attrib_list_t attr;
+
           /* We get ride of F_OK */
           used_access_type = access_type & ~FSAL_F_OK;
 
