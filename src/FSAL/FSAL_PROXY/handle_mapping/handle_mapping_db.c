@@ -2,8 +2,6 @@
 #include "handle_mapping.h"
 #include "handle_mapping_db.h"
 #include "handle_mapping_internal.h"
-#include "../fsal_internal.h"
-#include "stuff_alloc.h"
 #include <sqlite3.h>
 #include <sys/types.h>
 #include <dirent.h>
@@ -79,10 +77,11 @@ typedef struct db_op_item__
 
   union
   {
-    struct
+    struct hdlmap_tuple
     {
       nfs23_map_handle_t nfs23_digest;
-      fsal_handle_t fsal_handle;
+      uint8_t fh4_len;
+      char fh4_data[NFS4_FHSIZE];
     } fh_info;
 
     hash_table_t *hash;
@@ -300,7 +299,8 @@ static int db_load_operation(db_thread_info_t * p_info, hash_table_t * p_hash)
   uint64_t object_id;
   unsigned int handle_hash;
   const char *fsal_handle_str;
-  fsal_handle_t fsal_handle;
+  char fh4_data[NFS4_FHSIZE];
+  nfs_fh4 fh4;
   unsigned int nb_loaded = 0;
   int rc;
   struct timeval t1;
@@ -319,19 +319,48 @@ static int db_load_operation(db_thread_info_t * p_info, hash_table_t * p_hash)
       handle_hash = sqlite3_column_int(p_info->prep_stmt[LOAD_ALL_STATEMENT], 1);
       fsal_handle_str = sqlite3_column_text(p_info->prep_stmt[LOAD_ALL_STATEMENT], 2);
 
-      /* convert hexa string representation to binary data */
-      sscanHandle(&fsal_handle, fsal_handle_str);
+      if(fsal_handle_str)
+        {
+          int len = strlen(fsal_handle_str);
 
-      /* now insert it to the hash table */
+          if((len & 1) || len > NFS4_FHSIZE * 2)
+            {
+              LogEvent(COMPONENT_FSAL,
+                       "Bogus handle '%s' - wrong number of symbols",
+                       fsal_handle_str);
+            }
+          else
+            {
+              /* convert hexa string representation to binary data */
+              if(sscanmem(fh4_data, len/2, fsal_handle_str) != len)
+                {
+                  LogEvent(COMPONENT_FSAL,
+                           "Bogus entry '%s' - cannot convert",
+                           fsal_handle_str);
+                }
+              else
+                {
+                  fh4.nfs_fh4_val = fh4_data;
+                  fh4.nfs_fh4_len = len/2;
 
-      rc = handle_mapping_hash_add(p_hash, object_id, handle_hash, &fsal_handle);
+                  /* now insert it to the hash table */
+                  rc = handle_mapping_hash_add(p_hash, object_id, handle_hash,
+                                               &fh4);
 
-      if(rc == 0)
-        nb_loaded++;
+                  if(rc == 0)
+                    nb_loaded++;
+                  else
+                    LogCrit(COMPONENT_FSAL,
+                            "ERROR %d adding entry to hash table <object_id=%llu, FH_hash=%u, FSAL_Handle=%s>",
+                            rc, (unsigned long long)object_id, handle_hash, fsal_handle_str);
+                }
+            }
+        }
       else
-        LogCrit(COMPONENT_FSAL,
-                "ERROR %d adding entry to hash table <object_id=%llu, FH_hash=%u, FSAL_Handle=%s>",
-                rc, (unsigned long long)object_id, handle_hash, fsal_handle_str);
+        {
+          LogEvent(COMPONENT_FSAL, "Empty handle in object %lld, hash %d",
+                   (unsigned long long)object_id, handle_hash);
+        }
 
       rc = sqlite3_step(p_info->prep_stmt[LOAD_ALL_STATEMENT]);
       CheckStep(p_info->db_conn, rc, p_info->prep_stmt[LOAD_ALL_STATEMENT]);
@@ -354,21 +383,20 @@ static int db_load_operation(db_thread_info_t * p_info, hash_table_t * p_hash)
 }                               /* db_load_operation */
 
 static int db_insert_operation(db_thread_info_t * p_info,
-                               nfs23_map_handle_t * p_nfs23_digest,
-                               fsal_handle_t * p_handle)
+                               struct hdlmap_tuple *data)
 {
   int rc;
-  char handle_str[2 * sizeof(fsal_handle_t) + 1];
+  char handle_str[2 * NFS4_FHSIZE + 1];
 
   rc = sqlite3_bind_int64(p_info->prep_stmt[INSERT_STATEMENT], 1,
-                          p_nfs23_digest->object_id);
+                          data->nfs23_digest.object_id);
   CheckBind(p_info->db_conn, rc, p_info->prep_stmt[INSERT_STATEMENT]);
 
   rc = sqlite3_bind_int(p_info->prep_stmt[INSERT_STATEMENT], 2,
-                        p_nfs23_digest->handle_hash);
+                        data->nfs23_digest.handle_hash);
   CheckBind(p_info->db_conn, rc, p_info->prep_stmt[INSERT_STATEMENT]);
 
-  snprintHandle(handle_str, 2 * sizeof(fsal_handle_t) + 1, p_handle);
+  snprintmem(handle_str, sizeof(handle_str), data->fh4_data, data->fh4_len);
 
   rc = sqlite3_bind_text(p_info->prep_stmt[INSERT_STATEMENT], 3, handle_str, -1,
                          SQLITE_STATIC);
@@ -586,8 +614,7 @@ static void *database_worker_thread(void *arg)
           break;
 
         case INSERT:
-          db_insert_operation(p_info, &to_be_done->op_arg.fh_info.nfs23_digest,
-                              &to_be_done->op_arg.fh_info.fsal_handle);
+          db_insert_operation(p_info, &to_be_done->op_arg.fh_info);
           break;
 
         case DELETE:
@@ -810,7 +837,7 @@ int handlemap_db_reaload_all(hash_table_t * target_hash)
  * The request is inserted in the appropriate db queue.
  */
 int handlemap_db_insert(nfs23_map_handle_t * p_in_nfs23_digest,
-                        fsal_handle_t * p_in_handle)
+                        const nfs_fh4 *fh4)
 {
   unsigned int i;
   db_op_item_t *new_task;
@@ -835,7 +862,9 @@ int handlemap_db_insert(nfs23_map_handle_t * p_in_nfs23_digest,
       /* fill the task info */
       new_task->op_type = INSERT;
       new_task->op_arg.fh_info.nfs23_digest = *p_in_nfs23_digest;
-      new_task->op_arg.fh_info.fsal_handle = *p_in_handle;
+      memcpy(new_task->op_arg.fh_info.fh4_data, fh4->nfs_fh4_val, 
+             fh4->nfs_fh4_len);
+      new_task->op_arg.fh_info.fh4_len = fh4->nfs_fh4_len;
 
       rc = dbop_push(&db_thread[i].work_queue, new_task);
 
