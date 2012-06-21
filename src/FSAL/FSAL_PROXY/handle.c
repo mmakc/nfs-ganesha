@@ -213,7 +213,7 @@ static void pxy_create_getattr_bitmap(uint32_t *pbitmap)
 
         memset(pbitmap, 0, sizeof(uint32_t) * bm.bitmap4_len);
 
-        nfs4_list_to_bitmap4(&bm, &attrlen, tmpattrlist);
+        nfs4_list_to_bitmap4(&bm, attrlen, tmpattrlist);
 }
 
 /* Until readdir callback can take more information do not ask for more then
@@ -228,7 +228,7 @@ static void pxy_create_readdir_bitmap(uint32_t *pbitmap)
 
         memset(pbitmap, 0, sizeof(uint32_t) * bm.bitmap4_len);
 
-        nfs4_list_to_bitmap4(&bm, &attrlen, tmpattrlist);
+        nfs4_list_to_bitmap4(&bm, attrlen, tmpattrlist);
 }
 
 static struct
@@ -261,7 +261,7 @@ pxy_create_settable_bitmap(const fsal_attrib_list_t * attrs, bitmap4 *bm)
                 if(FSAL_TEST_MASK(attrs->asked_attributes, fsal_mask2bit[i].mask))
                         tmpattrlist[attrlen++] = fsal_mask2bit[i].fattr_bit;
         }
-        nfs4_list_to_bitmap4(bm, &attrlen, tmpattrlist);
+        nfs4_list_to_bitmap4(bm, attrlen, tmpattrlist);
 }
 
 static CLIENT *rpc_client;
@@ -1689,7 +1689,7 @@ pxy_create_fsinfo_bitmap(uint32_t *pbitmap)
 
         memset(pbitmap, 0, sizeof(uint32_t) * bm.bitmap4_len);
 
-        nfs4_list_to_bitmap4(&bm, &attrlen, tmpattrlist);
+        nfs4_list_to_bitmap4(&bm, attrlen, tmpattrlist);
 }
 
 static int
