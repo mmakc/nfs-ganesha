@@ -851,13 +851,14 @@ cache_inode_file_holds_state(cache_entry_t *entry)
  * attributes and, if not, refresh them.
  *
  * @param[in] entry   The entry to refresh
- * @param[in] context FSAL credentials
+ * @param[in] req_ctx Request context
  *
  * @return CACHE_INODE_SUCCESS or other status codes.
  */
 
 cache_inode_status_t
-cache_inode_check_trust(cache_entry_t *entry)
+cache_inode_check_trust(cache_entry_t *entry,
+                        const struct req_op_context *req_ctx)
 {
      time_t current_time = 0;
      cache_inode_status_t status = CACHE_INODE_SUCCESS;
@@ -903,7 +904,7 @@ cache_inode_check_trust(cache_entry_t *entry)
           goto unlock;
      }
 
-     if ((status = cache_inode_refresh_attrs(entry))
+     if ((status = cache_inode_refresh_attrs(req_ctx, entry))
          != CACHE_INODE_SUCCESS) {
           goto unlock;
      }

@@ -9,11 +9,13 @@ int vfs_get_root_fd(struct fsal_export *exp_hdl);
 /* method proto linkage to handle.c for export
  */
 
-fsal_status_t vfs_lookup_path(struct fsal_export *exp_hdl,
+fsal_status_t vfs_lookup_path(const struct req_op_context *opctx,
+                              struct fsal_export *exp_hdl,
 			      const char *path,
 			      struct fsal_obj_handle **handle);
 
-fsal_status_t vfs_create_handle(struct fsal_export *exp_hdl,
+fsal_status_t vfs_create_handle(const struct req_op_context *opctx,
+                                struct fsal_export *exp_hdl,
 				struct gsh_buffdesc *hdl_desc,
 				struct fsal_obj_handle **handle);
 
@@ -55,13 +57,15 @@ struct vfs_fsal_obj_handle {
 fsal_status_t vfs_open(struct fsal_obj_handle *obj_hdl,
 		       fsal_openflags_t openflags);
 fsal_openflags_t vfs_status(struct fsal_obj_handle *obj_hdl);
-fsal_status_t vfs_read(struct fsal_obj_handle *obj_hdl,
+fsal_status_t vfs_read(const struct req_op_context *opctx,
+                       struct fsal_obj_handle *obj_hdl,
 		       uint64_t offset,
 		       size_t buffer_size,
 		       void *buffer,
 		       size_t *read_amount,
 		       bool_t *end_of_file);
-fsal_status_t vfs_write(struct fsal_obj_handle *obj_hdl,
+fsal_status_t vfs_write(const struct req_op_context *opctx,
+                        struct fsal_obj_handle *obj_hdl,
                         uint64_t offset,
 			size_t buffer_size,
 			void *buffer,

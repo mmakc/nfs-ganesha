@@ -118,7 +118,8 @@ errout:
 	return fsalstat(fsal_error, retval);
 }
 
-static fsal_status_t get_dynamic_info(struct fsal_export *exp_hdl,
+static fsal_status_t get_dynamic_info(const struct req_op_context *opctx,
+                                      struct fsal_export *exp_hdl,
 					 fsal_dynamicfsinfo_t *infop)
 {
 	struct vfs_fsal_export *myself;

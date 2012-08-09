@@ -73,6 +73,7 @@
  * @param[in]     fsdata     File system data
  * @param[out]    attr       The attributes of the got entry
  * @param[in]     associated Entry that may be equal to the got entry
+ * @param[in]     req_ctx    Request context (user creds, client address etc)
  * @param[out]    status     Returned status
  *
  * @return If successful, the pointer to the entry; NULL otherwise
@@ -82,6 +83,7 @@ cache_entry_t *
 cache_inode_get(cache_inode_fsal_data_t *fsdata,
                 struct attrlist *attr,
                 cache_entry_t *associated,
+                const struct req_op_context *req_ctx,
                 cache_inode_status_t *status)
 {
      hash_buffer_t key, value;
@@ -140,7 +142,7 @@ cache_inode_get(cache_inode_fsal_data_t *fsdata,
      if (!entry) {
           /* Cache miss, allocate a new entry */
 	  exp_hdl = fsdata->export;
-	  fsal_status = exp_hdl->ops->create_handle(exp_hdl,
+	  fsal_status = exp_hdl->ops->create_handle(req_ctx, exp_hdl,
 						    &fsdata->fh_desc,
 						    &new_hdl);
 	  if( FSAL_IS_ERROR( fsal_status )) {
@@ -181,13 +183,13 @@ cache_inode_get(cache_inode_fsal_data_t *fsdata,
         checked with use (when the attributes are locked for reading,
         for example.) */
 
-     if ((*status = cache_inode_check_trust(entry))
+     if ((*status = cache_inode_check_trust(entry, req_ctx))
          != CACHE_INODE_SUCCESS) {
        goto out_put;
      }
 
      /* Set the returned attributes */
-     *status = cache_inode_lock_trust_attrs(entry);
+     *status = cache_inode_lock_trust_attrs(req_ctx, entry);
 
      /* cache_inode_lock_trust_attrs may fail, in that case, the
         attributes are wrong and pthread_rwlock_unlock can't be called

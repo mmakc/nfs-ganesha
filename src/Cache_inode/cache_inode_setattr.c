@@ -176,7 +176,7 @@ cache_inode_setattr(cache_entry_t *entry,
              }
      }
      if (attr->mask & ATTR_SIZE) {
-             fsal_status = obj_handle->ops->truncate(obj_handle,
+             fsal_status = obj_handle->ops->truncate(req_ctx, obj_handle,
                                                      attr->filesize);
              if (FSAL_IS_ERROR(fsal_status)) {
                      *status = cache_inode_error_convert(fsal_status);
@@ -190,7 +190,7 @@ cache_inode_setattr(cache_entry_t *entry,
 #ifdef _USE_NFS4_ACL
      saved_acl = entry->attributes.acl;
 #endif /* _USE_NFS4_ACL */
-     fsal_status = obj_handle->ops->setattrs(obj_handle, attr);
+     fsal_status = obj_handle->ops->setattrs(req_ctx, obj_handle, attr);
      if (FSAL_IS_ERROR(fsal_status)) {
           *status = cache_inode_error_convert(fsal_status);
           if (fsal_status.major == ERR_FSAL_STALE) {
@@ -198,7 +198,7 @@ cache_inode_setattr(cache_entry_t *entry,
           }
           goto unlock;
      }
-     fsal_status = obj_handle->ops->getattrs(obj_handle, attr);
+     fsal_status = obj_handle->ops->getattrs(req_ctx, obj_handle, attr);
      if (FSAL_IS_ERROR(fsal_status)) {
           *status = cache_inode_error_convert(fsal_status);
           if (fsal_status.major == ERR_FSAL_STALE) {

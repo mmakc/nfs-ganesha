@@ -288,9 +288,11 @@ cache_inode_remove_impl(cache_entry_t *entry,
 #ifdef _USE_NFS4_ACL
      saved_acl = entry->attributes.acl;
 #endif /* _USE_NFS4_ACL */
-     fsal_status = entry->obj_handle->ops->unlink(entry->obj_handle, name);
+     fsal_status = entry->obj_handle->ops->unlink(req_ctx, entry->obj_handle,
+                                                  name);
      if( !FSAL_IS_ERROR(fsal_status))
-	  fsal_status = entry->obj_handle->ops->getattrs(entry->obj_handle,
+	  fsal_status = entry->obj_handle->ops->getattrs(req_ctx,
+                                                         entry->obj_handle,
 							 &entry->obj_handle->attributes);
 
      if (FSAL_IS_ERROR(fsal_status)) {
@@ -325,8 +327,9 @@ cache_inode_remove_impl(cache_entry_t *entry,
 
      /* Update the attributes for the removed entry */
      fsal_status
-	     = to_remove_entry->obj_handle->ops->getattrs(to_remove_entry->obj_handle,
-							      &to_remove_entry->obj_handle->attributes);
+	     = to_remove_entry->obj_handle->ops->getattrs(req_ctx,
+                                                          to_remove_entry->obj_handle,
+							  &to_remove_entry->obj_handle->attributes);
      if(FSAL_IS_ERROR(fsal_status)) {
 	     if(fsal_status.major == ERR_FSAL_STALE)
 		     to_remove_entry->obj_handle->attributes.numlinks = 0;

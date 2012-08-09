@@ -76,7 +76,7 @@
 cache_inode_status_t
 cache_inode_readlink(cache_entry_t *entry,
                      struct gsh_buffdesc *link_content,
-                     struct user_cred *creds,
+                     struct req_op_context *req_ctx,
                      cache_inode_status_t *status)
 {
      fsal_status_t fsal_status = {ERR_FSAL_NO_ERROR, 0};
@@ -99,7 +99,8 @@ cache_inode_readlink(cache_entry_t *entry,
           /* Make sure nobody updated the content while we were
              waiting. */
           if (!(entry->flags & CACHE_INODE_TRUST_CONTENT)) {
-               fsal_status = entry->obj_handle->ops->readlink(entry->obj_handle,
+               fsal_status = entry->obj_handle->ops->readlink(req_ctx,
+                                                              entry->obj_handle,
                                                               link_content->addr,
                                                               &link_content->len,
                                                               TRUE);
@@ -109,7 +110,8 @@ cache_inode_readlink(cache_entry_t *entry,
                }
           }
      } else {
-             fsal_status = entry->obj_handle->ops->readlink(entry->obj_handle,
+             fsal_status = entry->obj_handle->ops->readlink(req_ctx,
+                                                         entry->obj_handle,
                                                          link_content->addr,
                                                          &link_content->len,
                                                          FALSE);
