@@ -326,12 +326,14 @@ AC_DEFINE(_USE_TIRPC,1,[enable TIRPC support])
 GA_PROG_TIRPC
 _SRCDIR="`pwd`"
 TIRPCDIR="${_SRCDIR}/libtirpc"
+AC_MSG_NOTICE(configuring libtirpc)
 dnl echo "TIRPCDIR: ${TIRPCDIR}"
 if test -d ${TIRPCDIR}; then
 	cd ${TIRPCDIR}
-	sh autogen.sh
-	./configure CFLAGS="${CFLAGS}" --enable-gss --prefix="${prefix}"
+	sh autogen.sh || AC_MSG_FAILURE(libtirpc bootstrap failed, 1)
+	./configure CFLAGS="${CFLAGS}" --enable-gss --prefix="${prefix}" || AC_MSG_FAILURE(libtripc configure failed, 1)
 	cd ${_SRCDIR}
+	AC_MSG_NOTICE(finished configuring libtirpc)
 else
 	AC_MSG_ERROR([${TIRPCDIR} not present (cf. README.TIRPC).])
 fi
