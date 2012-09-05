@@ -299,7 +299,7 @@ int name2uid(char *name, uid_t * puid)
             {
               /* Failure to update the in-core table is not fatal */
               LogMajor(COMPONENT_IDMAPPER,
-                      "name2uid: uidmap_add %s %d failed",
+                      "name2uid: uidmap_add %s %ld failed",
                       name, uid);
             }
           *puid = uid;
@@ -725,7 +725,7 @@ int name2gid(char *name, gid_t * pgid)
             {
               /* Failure to update the in-core table is not fatal */
               LogMajor(COMPONENT_IDMAPPER,
-                      "name2gid: gidmap_add %s %d failed",
+                      "name2gid: gidmap_add %s %ld failed",
                       name, gid);
             }
 
