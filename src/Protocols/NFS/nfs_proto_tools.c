@@ -1173,15 +1173,15 @@ static fattr_xdr_result decode_archive(XDR *xdr, struct xdr_attrs_args *args)
 static fattr_xdr_result encode_cansettime(XDR *xdr, struct xdr_attrs_args *args)
 {
 	struct fsal_export *export;
-	uint32_t cansettime;
+	uint32_t val;
 
 	if(args->data != NULL && args->data->pexport != NULL) {
 		export = args->data->pexport->export_hdl;
-		cansettime = export->ops->fs_supports(export, cansettime);;
+		val = export->ops->fs_supports(export, cansettime);;
 	} else {
-		cansettime = TRUE;
+		val = TRUE;
 	}
-	if( !xdr_bool(xdr, &cansettime))
+	if( !xdr_bool(xdr, &val))
 		return FATTR_XDR_FAILED;
 
 	return FATTR_XDR_SUCCESS;
@@ -1686,15 +1686,15 @@ static fattr_xdr_result decode_mode(XDR *xdr, struct xdr_attrs_args *args)
 static fattr_xdr_result encode_no_trunc(XDR *xdr, struct xdr_attrs_args *args)
 {
 	struct fsal_export *export;
-	uint32_t no_trunc;
+	uint32_t val;
 
 	if(args->data != NULL && args->data->pexport != NULL) {
 		export = args->data->pexport->export_hdl;
-		no_trunc = export->ops->fs_supports(export, no_trunc);
+		val = export->ops->fs_supports(export, no_trunc);
 	} else {
-		no_trunc = TRUE;
+		val = TRUE;
 	}
-	if( !xdr_bool(xdr, &no_trunc))
+	if( !xdr_bool(xdr, &val))
 		return FATTR_XDR_FAILED;
 	return FATTR_XDR_SUCCESS;
 }
