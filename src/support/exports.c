@@ -273,11 +273,9 @@ int nfs_LookupNetworkAddr(char *host,   /* [IN] host/address specifier */
   /* BE CAREFUL !! The following lines are specific to IPv4. The libcidr support IPv6 as well */
   memset( netAddr, 0, sizeof( unsigned long ) ) ;
   memcpy( netAddr, &pcidr->addr[12], 4 ) ;
-  *netAddr = ntohl( *netAddr ) ;
 
   memset( netMask, 0, sizeof( unsigned long ) ) ;
   memcpy( netMask, &pcidr->mask[12], 4 ) ;
-  *netMask = ntohl( *netMask ) ;
 
   return 0 ; 
 } /* nfs_LookupNetworkAddr */
@@ -512,14 +510,15 @@ int nfs_AddClientsToClientList(exportlist_client_t * clients,
                    "entry %d %p: %s to network %s = %d.%d.%d.%d netmask = %d.%d.%d.%d",
                    i, p_client, var_name,
                    client_hostname,
-                   (int)(ntohl(p_client->client.network.netaddr) >> 24),
-                   (int)((ntohl(p_client->client.network.netaddr) >> 16) & 0xFF),
-                   (int)((ntohl(p_client->client.network.netaddr) >> 8) & 0xFF),
-                   (int)(ntohl(p_client->client.network.netaddr) & 0xFF),
-                   (int)(ntohl(p_client->client.network.netmask) >> 24),
-                   (int)((ntohl(p_client->client.network.netmask) >> 16) & 0xFF),
-                   (int)((ntohl(p_client->client.network.netmask) >> 8) & 0xFF),
-                   (int)(ntohl(p_client->client.network.netmask) & 0xFF));
+                   (unsigned int)(p_client->client.network.netaddr & 0xFF),
+                   (unsigned int)((p_client->client.network.netaddr >> 8) & 0xFF),
+                   (unsigned int)((p_client->client.network.netaddr >> 16) & 0xFF),
+                   (unsigned int)(p_client->client.network.netaddr >> 24),
+
+                   (unsigned int)(p_client->client.network.netmask & 0xFF),
+                   (unsigned int)((p_client->client.network.netmask >> 8) & 0xFF),
+                   (unsigned int)((p_client->client.network.netmask >> 16) & 0xFF),
+                   (unsigned int)(p_client->client.network.netmask >> 24));
         }
       else if( getaddrinfo(client_hostname, NULL, NULL, &info) == 0)
         {
@@ -534,10 +533,10 @@ int nfs_AddClientsToClientList(exportlist_client_t * clients,
                        "entry %d %p: %s to client %s = %d.%d.%d.%d",
                        i, p_client, var_name,
                        client_hostname, 
-                       (int)(ntohl(p_client->client.hostif.clientaddr) >> 24),
-                       (int)((ntohl(p_client->client.hostif.clientaddr) >> 16) & 0xFF),
-                       (int)((ntohl(p_client->client.hostif.clientaddr) >> 8) & 0xFF),
-                       (int)(ntohl(p_client->client.hostif.clientaddr) & 0xFF));
+                       (unsigned int)(p_client->client.network.netaddr & 0xFF),
+                       (unsigned int)((p_client->client.network.netaddr >> 8) & 0xFF),
+                       (unsigned int)((p_client->client.network.netaddr >> 16) & 0xFF),
+                       (unsigned int)(p_client->client.network.netaddr >> 24));
             }
           else /* AF_INET6 */
             {
@@ -3107,20 +3106,21 @@ static int export_client_match(sockaddr_t *hostaddr,
         case NETWORK_CLIENT:
           LogFullDebug(COMPONENT_DISPATCH,
                        "Test NETWORK_CLIENT: Test net %d.%d.%d.%d mask %d.%d.%d.%d, match with %d.%d.%d.%d",
-                       (int)(ntohl(p_client->client.network.netaddr) >> 24),
-                       (int)((ntohl(p_client->client.network.netaddr) >> 16) & 0xFF),
-                       (int)((ntohl(p_client->client.network.netaddr) >> 8) & 0xFF),
-                       (int)(ntohl(p_client->client.network.netaddr) & 0xFF),
-                       (int)(ntohl(p_client->client.network.netmask) >> 24),
-                       (int)((ntohl(p_client->client.network.netmask) >> 16) & 0xFF),
-                       (int)((ntohl(p_client->client.network.netmask) >> 8) & 0xFF),
-                       (int)(ntohl(p_client->client.network.netmask) & 0xFF),
-                       (int)(ntohl(addr) >> 24),
-                       (int)(ntohl(addr) >> 16) & 0xFF,
-                       (int)(ntohl(addr) >> 8) & 0xFF,
-                       (int)(ntohl(addr) & 0xFF));
+                       (int)(p_client->client.network.netaddr & 0xFF),
+                       (int)(p_client->client.network.netaddr >> 8) & 0xFF,
+                       (int)(p_client->client.network.netaddr >> 16) & 0xFF,
+                       (int)(p_client->client.network.netaddr >> 24),
 
-          if((p_client->client.network.netmask & ntohl(addr)) ==
+                       (int)(p_client->client.network.netmask & 0xFF),
+                       (int)(p_client->client.network.netmask >> 8) & 0xFF,
+                       (int)(p_client->client.network.netmask >> 16) & 0xFF,
+                       (int)(p_client->client.network.netmask >> 24),
+                       (int)(addr & 0xFF),
+                       (int)(addr >> 8) & 0xFF,
+                       (int)(addr >> 16) & 0xFF,
+                       (int)(addr >> 24));
+
+          if((p_client->client.network.netmask & addr) ==
              p_client->client.network.netaddr)
             {
               LogFullDebug(COMPONENT_DISPATCH,
