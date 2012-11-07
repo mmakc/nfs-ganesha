@@ -231,6 +231,8 @@ fsal_status_t XFSFSAL_open(fsal_handle_t * p_filehandle,     /* IN */
  *
  * \param file_descriptor (input):
  *        The file descriptor returned by FSAL_open.
+ * \param p_context (input):
+ *        FSAL context (unused)
  * \param seek_descriptor (optional input):
  *        Specifies the position where data is to be read.
  *        If not specified, data will be read at the current position.
@@ -474,7 +476,7 @@ fsal_status_t XFSFSAL_write(fsal_file_t * p_file_descriptor, /* IN */
 
   if(pcall)
     nb_written = pwrite(((xfsfsal_file_t *)p_file_descriptor)->fd,
-			buffer, i_size, p_seek_descriptor->offset);
+                        buffer, i_size, p_seek_descriptor->offset);
   else
     nb_written = write(((xfsfsal_file_t *)p_file_descriptor)->fd, buffer, i_size);
   errsv = errno;

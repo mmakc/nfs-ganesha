@@ -437,6 +437,8 @@ fsal_status_t PROXYFSAL_open(fsal_handle_t * filehandle,  /* IN */
  *
  * \param file_descriptor (input):
  *        The file descriptor returned by FSAL_open.
+ * \param fsal_op_context (input):
+ *        FSAL context - use RPC client handle from here
  * \param seek_descriptor (optional input):
  *        Specifies the position where data is to be read.
  *        If not specified, data will be read at the current position.
@@ -532,7 +534,7 @@ fsal_status_t PROXYFSAL_read(fsal_file_t * file_desc,        /* IN */
   TakeTokenFSCall();
 
   /* Call the NFSv4 function */
-  COMPOUNDV4_EXECUTE(file_descriptor->pcontext, argnfs4, resnfs4, rc);
+  COMPOUNDV4_EXECUTE(p_context, argnfs4, resnfs4, rc);
   if(rc != RPC_SUCCESS)
     {
       ReleaseTokenFSCall();
@@ -661,7 +663,7 @@ fsal_status_t PROXYFSAL_write(fsal_file_t * file_desc,       /* IN */
   TakeTokenFSCall();
 
   /* Call the NFSv4 function */
-  COMPOUNDV4_EXECUTE(file_descriptor->pcontext, argnfs4, resnfs4, rc);
+  COMPOUNDV4_EXECUTE(p_context, argnfs4, resnfs4, rc);
   if(rc != RPC_SUCCESS)
     {
       ReleaseTokenFSCall();
