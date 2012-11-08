@@ -267,13 +267,11 @@ int merge_stats(nfs_request_stat_item_t *global_stat_items,
               workers_stat_items[i][function_index].min_latency;
           global_stat_items[function_index].max_latency =
               workers_stat_items[i][function_index].max_latency;
-#ifdef _USE_QUEUE_TIMER
           if(detail_flag)
             {
               global_stat_items[function_index].tot_await_time =
                   workers_stat_items[i][function_index].tot_await_time;
             }
-#endif
         }
       else
         {
@@ -292,13 +290,11 @@ int merge_stats(nfs_request_stat_item_t *global_stat_items,
               set_max_latency(&(global_stat_items[function_index].max_latency),
                   workers_stat_items[i][function_index].max_latency);
             }
-#ifdef _USE_QUEUE_TIMER
           if(detail_flag)
             {
               global_stat_items[function_index].tot_await_time +=
                   workers_stat_items[i][function_index].tot_await_time;
             }
-#endif
         }
     }
 
@@ -324,7 +320,6 @@ int write_stats(char *stat_buf, int num_cmds, char **function_names, nfs_request
       ver = strtok_r(name, "_", &saveptr);
       call = strtok_r(NULL, "_", &saveptr);
 
-#ifdef _USE_QUEUE_TIMER
       if(detail_flag)
         offset += sprintf(offset, "_%s_ %u %"PRIu64" %"PRIu64,
                           call,
@@ -332,7 +327,6 @@ int write_stats(char *stat_buf, int num_cmds, char **function_names, nfs_request
                           global_stat_items[i].tot_latency,
                           global_stat_items[i].tot_await_time);
       else
-#endif
         offset += sprintf(offset, "_%s_ %u %"PRIu64,
                           call,
                           global_stat_items[i].total,

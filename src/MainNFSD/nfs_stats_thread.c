@@ -166,6 +166,7 @@ void stats_collect (ganesha_stats_t                 *ganesha_stats)
             global->tot_latency += mine->tot_latency;
             global->tot_fsal += mine->tot_fsal;
             global->cnt_fsal += mine->cnt_fsal;
+            global->tot_await_time += mine->tot_await_time;
         }
 
         accum_req_stats(global_worker_stat->stat_req.stat_req_nfs4,
@@ -412,7 +413,7 @@ void *stats_thread(void *UnusedArg)
               global_worker_stat->stat_req.nb_nfs3_req);
       for (j = 0; j < NFS_V3_NB_COMMAND; j++)
 	{
-          fprintf(stats_file, "|%u,%u,%u,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u",
+          fprintf(stats_file, "|%u,%u,%u,%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%"PRIu64",%u,%u,%u,%"PRIu64,
                   global_worker_stat->stat_req.stat_req_nfs3[j].total,
                   global_worker_stat->stat_req.stat_req_nfs3[j].success,
                   global_worker_stat->stat_req.stat_req_nfs3[j].dropped,
@@ -424,7 +425,8 @@ void *stats_thread(void *UnusedArg)
                   global_worker_stat->stat_req.stat_req_nfs3[j].max_fsal,
                   global_worker_stat->stat_req.stat_req_nfs3[j].cnt_fsal,
                   global_worker_stat->stat_req.stat_req_nfs3[j].min_fsal_cnt,
-                  global_worker_stat->stat_req.stat_req_nfs3[j].max_fsal_cnt);
+                  global_worker_stat->stat_req.stat_req_nfs3[j].max_fsal_cnt,
+                  global_worker_stat->stat_req.stat_req_nfs3[j].tot_await_time);
         }
       fprintf(stats_file, "\n");
 

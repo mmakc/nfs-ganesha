@@ -92,9 +92,7 @@
 void nfs_stat_update(nfs_stat_type_t      type,
                      nfs_request_stat_t * pstat_req,
                      struct svc_req     * preq,
-#ifdef _USE_QUEUE_TIMER
                      msectimer_t          await_time,
-#endif
                      msectimer_t          latency,
                      msectimer_t          fsal_latency,
                      unsigned int         fsal_count
@@ -205,52 +203,48 @@ void nfs_stat_update(nfs_stat_type_t      type,
   if(pitem->total == 0)
     {
       /* Set the initial value of latencies */
-      pitem->max_latency  = latency;
-      pitem->min_latency  = latency;
-      pitem->min_fsal     = fsal_latency;
-      pitem->max_fsal     = fsal_latency;
-      pitem->min_fsal_cnt = fsal_count;
-      pitem->max_fsal_cnt = fsal_count;
+      pitem->max_latency  = pitem->min_latency  = latency;
+      pitem->min_fsal     = pitem->max_fsal     = fsal_latency;
+      pitem->min_fsal_cnt = pitem->max_fsal_cnt = fsal_count;
+    }
+  else
+    {
+      /* update min and max latency */
+      if(latency > pitem->max_latency)
+        {
+          pitem->max_latency = latency;
+        }
+      if(latency < pitem->min_latency)
+        {
+          pitem->min_latency = latency;
+        }
+
+      /* update min and max fsal latency */
+      if(fsal_latency > pitem->max_fsal)
+        {
+          pitem->max_fsal = fsal_latency;
+        }
+      if(fsal_latency < pitem->min_fsal)
+        {
+          pitem->min_fsal = fsal_latency;
+        }
+
+      /* update min and max fsal count */
+      if(fsal_count > pitem->max_fsal_cnt)
+        {
+          pitem->max_fsal_cnt = fsal_count;
+        }
+      if(fsal_count < pitem->min_fsal_cnt)
+        {
+          pitem->min_fsal_cnt = fsal_count;
+        }
     }
 
   /* Update totals */
   pitem->tot_latency += latency;
   pitem->tot_fsal    += fsal_latency;
   pitem->cnt_fsal    += fsal_count;
-
-  /* update min and max latency */
-  if(latency > pitem->max_latency)
-    {
-      pitem->max_latency = latency;
-    }
-  else if(latency < pitem->min_latency)
-    {
-      pitem->min_latency = latency;
-    }
-
-  /* update min and max fsal latency */
-  if(fsal_latency > pitem->max_fsal)
-    {
-      pitem->max_fsal = fsal_latency;
-    }
-  else if(fsal_latency < pitem->min_fsal)
-    {
-      pitem->min_fsal = fsal_latency;
-    }
-
-  /* update min and max fsal count */
-  if(fsal_count > pitem->max_fsal_cnt)
-    {
-      pitem->max_fsal_cnt = fsal_count;
-    }
-  else if(fsal_count < pitem->min_fsal_cnt)
-    {
-      pitem->min_fsal_cnt = fsal_count;
-    }
-
-#ifdef _USE_QUEUE_TIMER
   pitem->tot_await_time += await_time;
-#endif
 
   pitem->total += 1;
 

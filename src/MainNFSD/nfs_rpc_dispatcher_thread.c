@@ -1334,6 +1334,7 @@ thr_decode_rpc_request(fridge_thr_contex_t *thr_ctx, SVCXPRT *xprt)
         goto done;
     }
     else {
+        nfsreq->r_u.nfs->time_queued = timer_get();
         nfsreq->r_u.nfs->req.rq_prog = msg->rm_call.cb_prog;
         nfsreq->r_u.nfs->req.rq_vers = msg->rm_call.cb_vers;
         nfsreq->r_u.nfs->req.rq_proc = msg->rm_call.cb_proc;

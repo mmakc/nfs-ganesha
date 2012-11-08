@@ -96,9 +96,7 @@ typedef struct nfs_request_stat_item__
   msectimer_t  tot_latency;
   msectimer_t  min_latency;
   msectimer_t  max_latency;
-#ifdef _USE_QUEUE_TIMER
   msectimer_t  tot_await_time;
-#endif
   msectimer_t  tot_fsal;
   msectimer_t  min_fsal;
   msectimer_t  max_fsal;
@@ -163,9 +161,7 @@ typedef struct nfs_worker_stat__
 void nfs_stat_update(nfs_stat_type_t      type,
                      nfs_request_stat_t * pstat_req,
                      struct svc_req     * preq,
-#ifdef _USE_QUEUE_TIMER
                      msectimer_t          await_time,
-#endif
                      msectimer_t          latency,
                      msectimer_t          fsal_latency,
                      unsigned int         fsal_count

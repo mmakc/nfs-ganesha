@@ -807,9 +807,7 @@ static void nfs_rpc_execute(request_data_t    * preq,
   msectimer_t                  timer_start;
   msectimer_t                  timer_end;
   msectimer_t                  timer_diff;
-#ifdef _USE_QUEUE_TIMER
   msectimer_t                  queue_timer_diff;
-#endif
   msectimer_t                  fsal_latency = 0;
   unsigned int                 fsal_count   = 0;
   enum auth_stat               auth_rc;
@@ -1480,18 +1478,14 @@ static void nfs_rpc_execute(request_data_t    * preq,
 #endif
   timer_diff = timer_end - timer_start;
 
-#ifdef _USE_QUEUE_TIMER
   /* process time + queue time */
   queue_timer_diff = timer_end - preqnfs->time_queued;
-#endif
 
   /* Update the stats for the worker */
   nfs_stat_update(stat_type,
                   &(pworker_data->stats.stat_req),
                   req,
-#ifdef _USE_QUEUE_TIMER
                   queue_timer_diff,
-#endif
                   timer_diff,
                   fsal_latency,
                   fsal_count);
@@ -1506,9 +1500,7 @@ static void nfs_rpc_execute(request_data_t    * preq,
       nfs_stat_update(stat_type,
 		      &(pexport->worker_stats[pworker_data->worker_index].stat_req),
 		      req,
-#ifdef _USE_QUEUE_TIMER
                       queue_timer_diff,
-#endif
 		      timer_diff,
 		      fsal_latency,
 		      fsal_count);
@@ -1531,13 +1523,11 @@ static void nfs_rpc_execute(request_data_t    * preq,
              timer_diff / MSEC_PER_SEC,
              timer_diff % MSEC_PER_SEC);
 
-#ifdef _USE_QUEUE_TIMER
   LogFullDebug(COMPONENT_DISPATCH,
-               "Function %s xid=%u: await %llu.%.6llu",
+               "Function %s xid=%u: await %"PRIu64".%.6"PRIu64,
                pworker_data->funcdesc->funcname, req->rq_xid,
                queue_timer_diff / MSEC_PER_SEC,
                queue_timer_diff % MSEC_PER_SEC);
-#endif
 
   /* Perform NFSv4 operations statistics if required */
   if(req->rq_vers == NFS_V4)

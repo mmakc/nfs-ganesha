@@ -1,4 +1,4 @@
-#!/bin/env perl
+#!/usr/bin/env perl
 #
 ################## Doxygen header ##################
 #*
@@ -489,7 +489,7 @@ while (my $ligne=<STATS>)
             
       my $fn_index = 0;
       
-      while (  $reste =~ m/\|([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^|]+)(.*)/ )
+      while (  $reste =~ m/\|([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^,]+),([^|]+)(.*)/ )
       {
         my $nb_tot = $1;
         my $nb_ok = $2;
@@ -507,6 +507,7 @@ while (my $ligne=<STATS>)
         my $avg_fsal_cnt;
         my $min_fsal_cnt;
         my $max_fsal_cnt;
+	my $queue_time;
 
         if ( $vers == 3 )
         {
@@ -519,6 +520,7 @@ while (my $ligne=<STATS>)
           $cnt_fsal     = $10;
           $min_fsal_cnt = $11;
           $max_fsal_cnt = $12;
+	  $queue_time   = $13;
           if ( $nb_tot == 0 )
           {
             $avg_latency  = 0;
@@ -531,7 +533,7 @@ while (my $ligne=<STATS>)
             $avg_fsal     = $tot_fsal    / $nb_tot;
             $avg_fsal_cnt = $cnt_fsal    / $nb_tot;
           }
-          $reste = $13;
+          $reste = $14;
         }
         else
         {
@@ -543,8 +545,8 @@ while (my $ligne=<STATS>)
           # print header the first time
           if ( $vers == 3 )
           {
-            printf( "%20s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s\n", "FUNCTION", "NB_CALLS", "OK", "DROPPED",
-                    "TOT_LAT", "AVG", "MIN", "MAX", "TOT_FSAL", "AVG", "MIN", "MAX", "COUNT_FSAL", "AVG", "MIN", "MAX" );
+            printf( "%20s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s\n", "FUNCTION", "NB_CALLS", "OK", "DROPPED",
+                    "TOT_LAT", "AVG", "MIN", "MAX", "TOT_FSAL", "AVG", "MIN", "MAX", "COUNT_FSAL", "AVG", "MIN", "MAX", "WAIT" );
           }
           else
           {
@@ -559,10 +561,10 @@ while (my $ligne=<STATS>)
         }
         elsif ( $vers == 3 )
         {
-          printf( "%20s | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d \n", $nfs3_fn_names[$fn_index],
+          printf( "%20s | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d | %10d \n", $nfs3_fn_names[$fn_index],
                    $nb_tot, $nb_ok, $nb_dropp, $tot_latency, $avg_latency, $min_latency, $max_latency,
                    $tot_fsal, $avg_fsal, $min_fsal, $max_fsal,
-                   $cnt_fsal, $avg_fsal_cnt, $min_fsal_cnt, $max_fsal_cnt);
+                   $cnt_fsal, $avg_fsal_cnt, $min_fsal_cnt, $max_fsal_cnt, $queue_time);
         }
         elsif ( $vers == 4 )
         {
