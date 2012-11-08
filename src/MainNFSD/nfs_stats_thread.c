@@ -54,6 +54,29 @@
 
 extern hash_table_t *ht_ip_stats[NB_MAX_WORKER_THREAD];
 
+static void accum_op_stats(nfs_op_stat_item_t * global,
+                           const nfs_op_stat_item_t *mine,
+                           int cnt)
+{
+    int j;
+    for (j = 0; j < cnt; j++) {
+        global[j].total += mine[j].total;
+        global[j].success += mine[j].success;
+        global[j].failed += mine[j].failed;
+    }
+}
+static void accum_req_stats(nfs_request_stat_item_t * global,
+                            const nfs_request_stat_item_t *mine,
+                            int cnt)
+{
+    int j;
+    for (j = 0; j < cnt; j++) {
+        global[j].total += mine[j].total;
+        global[j].success += mine[j].success;
+        global[j].dropped += mine[j].dropped;
+    }
+}
+
 /*
  * This function collects statistics from all Ganesha system modules so that they can then
  * be pushed into various users (e.g.: a statistics file, a network mgmt serviece, ...)
@@ -77,181 +100,86 @@ void stats_collect (ganesha_stats_t                 *ganesha_stats)
     memset(&global_worker_stat->stat_req, 0, sizeof(global_worker_stat->stat_req));
 
     for (i = 0; i < nfs_param.core_param.nb_worker; i++) {
-        global_worker_stat->nb_total_req += workers_data[i].stats.nb_total_req;
-        global_worker_stat->nb_udp_req += workers_data[i].stats.nb_udp_req;
-        global_worker_stat->nb_tcp_req += workers_data[i].stats.nb_tcp_req;
-        global_worker_stat->stat_req.nb_mnt1_req +=
-            workers_data[i].stats.stat_req.nb_mnt1_req;
-        global_worker_stat->stat_req.nb_mnt3_req +=
-            workers_data[i].stats.stat_req.nb_mnt3_req;
-        global_worker_stat->stat_req.nb_nfs2_req +=
-            workers_data[i].stats.stat_req.nb_nfs2_req;
-        global_worker_stat->stat_req.nb_nfs3_req +=
-            workers_data[i].stats.stat_req.nb_nfs3_req;
-        global_worker_stat->stat_req.nb_nfs4_req +=
-            workers_data[i].stats.stat_req.nb_nfs4_req;
-        global_worker_stat->stat_req.nb_nfs40_op +=
-            workers_data[i].stats.stat_req.nb_nfs40_op;
-        global_worker_stat->stat_req.nb_nfs41_op +=
-            workers_data[i].stats.stat_req.nb_nfs41_op;
+        nfs_worker_stat_t *wds = &workers_data[i].stats;
 
-        global_worker_stat->stat_req.nb_nlm4_req +=
-            workers_data[i].stats.stat_req.nb_nlm4_req;
+        global_worker_stat->nb_total_req += wds->nb_total_req;
+        global_worker_stat->nb_udp_req += wds->nb_udp_req;
+        global_worker_stat->nb_tcp_req += wds->nb_tcp_req;
+        global_worker_stat->stat_req.nb_mnt1_req += wds->stat_req.nb_mnt1_req;
+        global_worker_stat->stat_req.nb_mnt3_req += wds->stat_req.nb_mnt3_req;
+        global_worker_stat->stat_req.nb_nfs2_req += wds->stat_req.nb_nfs2_req;
+        global_worker_stat->stat_req.nb_nfs3_req += wds->stat_req.nb_nfs3_req;
+        global_worker_stat->stat_req.nb_nfs4_req += wds->stat_req.nb_nfs4_req;
+        global_worker_stat->stat_req.nb_nfs40_op += wds->stat_req.nb_nfs40_op;
+        global_worker_stat->stat_req.nb_nfs41_op += wds->stat_req.nb_nfs41_op;
+        global_worker_stat->stat_req.nb_nlm4_req += wds->stat_req.nb_nlm4_req;
+        global_worker_stat->stat_req.nb_rquota1_req += wds->stat_req.nb_rquota1_req;
+        global_worker_stat->stat_req.nb_rquota2_req += wds->stat_req.nb_rquota2_req;
 
-        global_worker_stat->stat_req.nb_rquota1_req +=
-            workers_data[i].stats.stat_req.nb_nlm4_req;
+        accum_req_stats(global_worker_stat->stat_req.stat_req_mnt1,
+                        wds->stat_req.stat_req_mnt1, MNT_V1_NB_COMMAND);
 
-        global_worker_stat->stat_req.nb_rquota2_req +=
-            workers_data[i].stats.stat_req.nb_nlm4_req;
+        accum_req_stats(global_worker_stat->stat_req.stat_req_mnt3,
+                        wds->stat_req.stat_req_mnt3, MNT_V3_NB_COMMAND);
 
-        for (j = 0; j < MNT_V1_NB_COMMAND; j++) {
-                global_worker_stat->stat_req.stat_req_mnt1[j].total +=
-                    workers_data[i].stats.stat_req.stat_req_mnt1[j].total;
-                global_worker_stat->stat_req.stat_req_mnt1[j].success +=
-                    workers_data[i].stats.stat_req.stat_req_mnt1[j].success;
-                global_worker_stat->stat_req.stat_req_mnt1[j].dropped +=
-                    workers_data[i].stats.stat_req.stat_req_mnt1[j].dropped;
-            }
-
-        for (j = 0; j < MNT_V3_NB_COMMAND; j++) {
-                global_worker_stat->stat_req.stat_req_mnt3[j].total +=
-                    workers_data[i].stats.stat_req.stat_req_mnt3[j].total;
-                global_worker_stat->stat_req.stat_req_mnt3[j].success +=
-                    workers_data[i].stats.stat_req.stat_req_mnt3[j].success;
-                global_worker_stat->stat_req.stat_req_mnt3[j].dropped +=
-                    workers_data[i].stats.stat_req.stat_req_mnt3[j].dropped;
-            }
-
-        for (j = 0; j < NFS_V2_NB_COMMAND; j++) {
-                global_worker_stat->stat_req.stat_req_nfs2[j].total +=
-                    workers_data[i].stats.stat_req.stat_req_nfs2[j].total;
-                global_worker_stat->stat_req.stat_req_nfs2[j].success +=
-                    workers_data[i].stats.stat_req.stat_req_nfs2[j].success;
-                global_worker_stat->stat_req.stat_req_nfs2[j].dropped +=
-                    workers_data[i].stats.stat_req.stat_req_nfs2[j].dropped;
-            }
+        accum_req_stats(global_worker_stat->stat_req.stat_req_nfs2, 
+                        wds->stat_req.stat_req_nfs2, NFS_V2_NB_COMMAND);
 
         for (j = 0; j < NFS_V3_NB_COMMAND; j++) {
+            nfs_request_stat_item_t * global = 
+                global_worker_stat->stat_req.stat_req_nfs3 + j;
+            const nfs_request_stat_item_t *mine = 
+                wds->stat_req.stat_req_nfs3 + j;
 
-          if(workers_data[i].stats.stat_req.stat_req_nfs3[j].total != 0)
-            {
-              /* There are requests from this worker, so check min/max */
-              if(global_worker_stat->stat_req.stat_req_nfs3[j].total == 0)
-                {
-                  /* No requests recorded yet, so min/max starts here */
-                  global_worker_stat->stat_req.stat_req_nfs3[j].min_latency =
-                      workers_data[i].stats.stat_req.stat_req_nfs3[j].min_latency;
-                  global_worker_stat->stat_req.stat_req_nfs3[j].max_latency =
-                      workers_data[i].stats.stat_req.stat_req_nfs3[j].max_latency;
+            if(mine->total > 0) {
+                if(global->total == 0) {
+                    /* No requests recorded yet, so min/max starts here */
+                    global->min_latency = mine->min_latency;
+                    global->max_latency = mine->max_latency;
 
-                  global_worker_stat->stat_req.stat_req_nfs3[j].min_fsal =
-                      workers_data[i].stats.stat_req.stat_req_nfs3[j].min_fsal;
-                  global_worker_stat->stat_req.stat_req_nfs3[j].max_fsal =
-                      workers_data[i].stats.stat_req.stat_req_nfs3[j].max_fsal;
+                    global->min_fsal = mine->min_fsal;
+                    global->max_fsal = mine->max_fsal;
 
-                  global_worker_stat->stat_req.stat_req_nfs3[j].min_fsal_cnt =
-                      workers_data[i].stats.stat_req.stat_req_nfs3[j].min_fsal_cnt;
-                  global_worker_stat->stat_req.stat_req_nfs3[j].max_fsal_cnt =
-                      workers_data[i].stats.stat_req.stat_req_nfs3[j].max_fsal_cnt;
-                }
-              else
-                {
-                  /* Check if new min/max are lower/higher */
-                set_min_latency(&(global_worker_stat->stat_req.stat_req_nfs3[j].min_latency),
-                                workers_data[i].stats.stat_req.stat_req_nfs3[j].min_latency);
-                set_max_latency(&(global_worker_stat->stat_req.stat_req_nfs3[j].max_latency),
-                                workers_data[i].stats.stat_req.stat_req_nfs3[j].max_latency);
+                    global->min_fsal_cnt = mine->min_fsal_cnt;
+                    global->max_fsal_cnt = mine->max_fsal_cnt;
+                } else {
+                    /* Check if new min/max are lower/higher */
+                    if (mine->min_latency < global->min_latency)
+                        global->min_latency = mine->min_latency;
+                    if(global->max_latency <  mine->max_latency)
+                        global->max_latency = mine->max_latency;
 
-                set_min_latency(&(global_worker_stat->stat_req.stat_req_nfs3[j].min_fsal),
-                                workers_data[i].stats.stat_req.stat_req_nfs3[j].min_fsal);
-                set_max_latency(&(global_worker_stat->stat_req.stat_req_nfs3[j].max_fsal),
-                                workers_data[i].stats.stat_req.stat_req_nfs3[j].max_fsal);
+                    if(global->min_fsal > mine->min_fsal);
+                        global->min_fsal = mine->min_fsal;
+                    if (global->max_fsal < mine->max_fsal);
+                        global->max_fsal = mine->max_fsal;
 
-                if(workers_data[i].stats.stat_req.stat_req_nfs3[j].min_fsal_cnt <
-                   global_worker_stat->stat_req.stat_req_nfs3[j].min_fsal_cnt)
-                  global_worker_stat->stat_req.stat_req_nfs3[j].min_fsal_cnt =
-                    workers_data[i].stats.stat_req.stat_req_nfs3[j].min_fsal_cnt;
-
-                if(workers_data[i].stats.stat_req.stat_req_nfs3[j].max_fsal_cnt >
-                   global_worker_stat->stat_req.stat_req_nfs3[j].max_fsal_cnt)
-                  global_worker_stat->stat_req.stat_req_nfs3[j].max_fsal_cnt =
-                    workers_data[i].stats.stat_req.stat_req_nfs3[j].max_fsal_cnt;
+                    if(mine->min_fsal_cnt < global->min_fsal_cnt)
+                        global->min_fsal_cnt = mine->min_fsal_cnt;
+                    if(mine->max_fsal_cnt > global->max_fsal_cnt)
+                        global->max_fsal_cnt = mine->max_fsal_cnt;
                 }
             }
-
-                /* Accumulate all the other stats */
-                global_worker_stat->stat_req.stat_req_nfs3[j].total +=
-                    workers_data[i].stats.stat_req.stat_req_nfs3[j].total;
-                global_worker_stat->stat_req.stat_req_nfs3[j].success +=
-                    workers_data[i].stats.stat_req.stat_req_nfs3[j].success;
-                global_worker_stat->stat_req.stat_req_nfs3[j].dropped +=
-                    workers_data[i].stats.stat_req.stat_req_nfs3[j].dropped;
-
-                global_worker_stat->stat_req.stat_req_nfs3[j].tot_latency +=
-                    workers_data[i].stats.stat_req.stat_req_nfs3[j].tot_latency;
-
-#ifdef _USE_QUEUE_TIMER
-                global_worker_stat->stat_req.stat_req_nfs3[j].tot_await_time +=
-                    workers_data[i].stats.stat_req.stat_req_nfs3[j].tot_await_time;
-#endif
-                global_worker_stat->stat_req.stat_req_nfs3[j].tot_fsal +=
-                    workers_data[i].stats.stat_req.stat_req_nfs3[j].tot_fsal;
-
-                global_worker_stat->stat_req.stat_req_nfs3[j].cnt_fsal +=
-                    workers_data[i].stats.stat_req.stat_req_nfs3[j].cnt_fsal;
-            }
-
-        for (j = 0; j < NFS_V4_NB_COMMAND; j++) {
-                global_worker_stat->stat_req.stat_req_nfs4[j].total +=
-                    workers_data[i].stats.stat_req.stat_req_nfs4[j].total;
-                global_worker_stat->stat_req.stat_req_nfs4[j].success +=
-                    workers_data[i].stats.stat_req.stat_req_nfs4[j].success;
-                global_worker_stat->stat_req.stat_req_nfs4[j].dropped +=
-                    workers_data[i].stats.stat_req.stat_req_nfs4[j].dropped;
-            }
-
-        for (j = 0; j < NFS_V40_NB_OPERATION; j++) {
-                global_worker_stat->stat_req.stat_op_nfs40[j].total +=
-                    workers_data[i].stats.stat_req.stat_op_nfs40[j].total;
-                global_worker_stat->stat_req.stat_op_nfs40[j].success +=
-                    workers_data[i].stats.stat_req.stat_op_nfs40[j].success;
-                global_worker_stat->stat_req.stat_op_nfs40[j].failed +=
-                    workers_data[i].stats.stat_req.stat_op_nfs40[j].failed;
+            global->total += mine->total;
+            global->success += mine->success;
+            global->dropped += mine->dropped;
+            global->tot_latency += mine->tot_latency;
+            global->tot_fsal += mine->tot_fsal;
+            global->cnt_fsal += mine->cnt_fsal;
         }
 
-        for (j = 0; j < NFS_V41_NB_OPERATION; j++) {
-                global_worker_stat->stat_req.stat_op_nfs41[j].total +=
-                    workers_data[i].stats.stat_req.stat_op_nfs41[j].total;
-                global_worker_stat->stat_req.stat_op_nfs41[j].success +=
-                    workers_data[i].stats.stat_req.stat_op_nfs41[j].success;
-                global_worker_stat->stat_req.stat_op_nfs41[j].failed +=
-                    workers_data[i].stats.stat_req.stat_op_nfs41[j].failed;
-        }
-
-        for (j = 0; j < NLM_V4_NB_OPERATION; j++) {
-                global_worker_stat->stat_req.stat_req_nlm4[j].total +=
-                    workers_data[i].stats.stat_req.stat_req_nlm4[j].total;
-                global_worker_stat->stat_req.stat_req_nlm4[j].success +=
-                    workers_data[i].stats.stat_req.stat_req_nlm4[j].success;
-                global_worker_stat->stat_req.stat_req_nlm4[j].dropped +=
-                    workers_data[i].stats.stat_req.stat_req_nlm4[j].dropped;
-        }
-
-        for (j = 0; j < RQUOTA_NB_COMMAND; j++) {
-                global_worker_stat->stat_req.stat_req_rquota1[j].total +=
-                    workers_data[i].stats.stat_req.stat_req_rquota1[j].total;
-                global_worker_stat->stat_req.stat_req_rquota1[j].success +=
-                    workers_data[i].stats.stat_req.stat_req_rquota1[j].success;
-                global_worker_stat->stat_req.stat_req_rquota1[j].dropped +=
-                    workers_data[i].stats.stat_req.stat_req_rquota1[j].dropped;
-
-                global_worker_stat->stat_req.stat_req_rquota2[j].total +=
-                    workers_data[i].stats.stat_req.stat_req_rquota2[j].total;
-                global_worker_stat->stat_req.stat_req_rquota2[j].success +=
-                    workers_data[i].stats.stat_req.stat_req_rquota2[j].success;
-                global_worker_stat->stat_req.stat_req_rquota2[j].dropped +=
-                    workers_data[i].stats.stat_req.stat_req_rquota2[j].dropped;
-        }
+        accum_req_stats(global_worker_stat->stat_req.stat_req_nfs4,
+                        wds->stat_req.stat_req_nfs4, NFS_V4_NB_COMMAND);
+        accum_op_stats(global_worker_stat->stat_req.stat_op_nfs40,
+                       wds->stat_req.stat_op_nfs40, NFS_V40_NB_OPERATION);
+        accum_op_stats(global_worker_stat->stat_req.stat_op_nfs41,
+                       wds->stat_req.stat_op_nfs41, NFS_V41_NB_OPERATION);
+        accum_req_stats(global_worker_stat->stat_req.stat_req_nlm4,
+                        wds->stat_req.stat_req_nlm4, NLM_V4_NB_OPERATION);
+        accum_req_stats(global_worker_stat->stat_req.stat_req_rquota1,
+                        wds->stat_req.stat_req_rquota1, RQUOTA_NB_COMMAND);
+        accum_req_stats(global_worker_stat->stat_req.stat_req_rquota2,
+                        wds->stat_req.stat_req_rquota2, RQUOTA_NB_COMMAND);
     }                       /* for( i = 0 ; i < nfs_param.core_param.nb_worker ; i++ ) */
 
     /* Printing the cache inode hash stat */
@@ -282,6 +210,42 @@ void stats_collect (ganesha_stats_t                 *ganesha_stats)
                 workers_data[i].stats.fsal_stats.func_stats.nb_err_unrecover[j];
         }
     }
+}
+
+static void dump_op_stats(FILE * stats_file,
+                           const char *tag,
+                           const char *timestamp,
+                           unsigned int nreqs,
+                           const nfs_op_stat_item_t *stats,
+                           int cnt)
+{
+    int j;
+    fprintf(stats_file, "%s,%s;%u", tag, timestamp, nreqs);
+    for(j = 0; j < cnt; j++) {
+        fprintf(stats_file, "|%u,%u,%u",
+                stats[j].total,
+                stats[j].success,
+                stats[j].failed);
+    }
+    fprintf(stats_file, "\n");
+}
+
+static void dump_req_stats(FILE * stats_file,
+                           const char *tag,
+                           const char *timestamp,
+                           unsigned int nreqs,
+                           const nfs_request_stat_item_t *stats,
+                           int cnt)
+{
+    int j;
+    fprintf(stats_file, "%s,%s;%u", tag, timestamp, nreqs);
+    for(j = 0; j < cnt; j++) {
+        fprintf(stats_file, "|%u,%u,%u",
+                stats[j].total,
+                stats[j].success,
+                stats[j].dropped);
+    }
+    fprintf(stats_file, "\n");
 }
 
 void *stats_thread(void *UnusedArg)
@@ -429,32 +393,20 @@ void *stats_thread(void *UnusedArg)
               global_worker_stat->stat_req.nb_nfs3_req,
               global_worker_stat->stat_req.nb_nfs4_req);
 
-      fprintf(stats_file, "MNT V1 REQUEST,%s;%u", strdate,
-              global_worker_stat->stat_req.nb_mnt1_req);
-      for(j = 0; j < MNT_V1_NB_COMMAND; j++)
-        fprintf(stats_file, "|%u,%u,%u",
-                global_worker_stat->stat_req.stat_req_mnt1[j].total,
-                global_worker_stat->stat_req.stat_req_mnt1[j].success,
-                global_worker_stat->stat_req.stat_req_mnt1[j].dropped);
-      fprintf(stats_file, "\n");
+      dump_req_stats(stats_file, "MNT V1 REQUEST", strdate,
+                     global_worker_stat->stat_req.nb_mnt1_req,
+                     global_worker_stat->stat_req.stat_req_mnt1,
+                     MNT_V1_NB_COMMAND);
 
-      fprintf(stats_file, "MNT V3 REQUEST,%s;%u", strdate,
-              global_worker_stat->stat_req.nb_mnt3_req);
-      for(j = 0; j < MNT_V3_NB_COMMAND; j++)
-        fprintf(stats_file, "|%u,%u,%u",
-                global_worker_stat->stat_req.stat_req_mnt3[j].total,
-                global_worker_stat->stat_req.stat_req_mnt3[j].success,
-                global_worker_stat->stat_req.stat_req_mnt3[j].dropped);
-      fprintf(stats_file, "\n");
+      dump_req_stats(stats_file, "MNT V3 REQUEST", strdate,
+                     global_worker_stat->stat_req.nb_mnt3_req,
+                     global_worker_stat->stat_req.stat_req_mnt3,
+                     MNT_V3_NB_COMMAND);
 
-      fprintf(stats_file, "NFS V2 REQUEST,%s;%u", strdate,
-              global_worker_stat->stat_req.nb_nfs2_req);
-      for(j = 0; j < NFS_V2_NB_COMMAND; j++)
-        fprintf(stats_file, "|%u,%u,%u",
-                global_worker_stat->stat_req.stat_req_nfs2[j].total,
-                global_worker_stat->stat_req.stat_req_nfs2[j].success,
-                global_worker_stat->stat_req.stat_req_nfs2[j].dropped);
-      fprintf(stats_file, "\n");
+      dump_req_stats(stats_file, "NFS V2 REQUEST", strdate,
+                     global_worker_stat->stat_req.nb_nfs2_req,
+                     global_worker_stat->stat_req.stat_req_nfs2,
+                     NFS_V2_NB_COMMAND);
 
       fprintf(stats_file, "NFS V3 REQUEST,%s;%u", strdate,
               global_worker_stat->stat_req.nb_nfs3_req);
@@ -476,59 +428,35 @@ void *stats_thread(void *UnusedArg)
         }
       fprintf(stats_file, "\n");
 
-      fprintf(stats_file, "NFS V4 REQUEST,%s;%u", strdate,
-              global_worker_stat->stat_req.nb_nfs4_req);
-      for(j = 0; j < NFS_V4_NB_COMMAND; j++)
-        fprintf(stats_file, "|%u,%u,%u",
-                global_worker_stat->stat_req.stat_req_nfs4[j].total,
-                global_worker_stat->stat_req.stat_req_nfs4[j].success,
-                global_worker_stat->stat_req.stat_req_nfs4[j].dropped);
-      fprintf(stats_file, "\n");
+      dump_req_stats(stats_file, "NFS V4 REQUEST", strdate,
+                     global_worker_stat->stat_req.nb_nfs4_req,
+                     global_worker_stat->stat_req.stat_req_nfs4,
+                     NFS_V4_NB_COMMAND);
 
-      fprintf(stats_file, "NFS V4.0 OPERATIONS,%s;%u", strdate,
-              global_worker_stat->stat_req.nb_nfs40_op);
-      for(j = 0; j < NFS_V40_NB_OPERATION; j++)
-        fprintf(stats_file, "|%u,%u,%u",
-                global_worker_stat->stat_req.stat_op_nfs40[j].total,
-                global_worker_stat->stat_req.stat_op_nfs40[j].success,
-                global_worker_stat->stat_req.stat_op_nfs40[j].failed);
-      fprintf(stats_file, "\n");
+      dump_op_stats(stats_file, "NFS V4.0 OPERATIONS", strdate,
+                    global_worker_stat->stat_req.nb_nfs40_op,
+                    global_worker_stat->stat_req.stat_op_nfs40,
+                    NFS_V40_NB_OPERATION);
 
-      fprintf(stats_file, "NFS V4.1 OPERATIONS,%s;%u", strdate,
-              global_worker_stat->stat_req.nb_nfs41_op);
-      for(j = 0; j < NFS_V41_NB_OPERATION; j++)
-        fprintf(stats_file, "|%u,%u,%u",
-                global_worker_stat->stat_req.stat_op_nfs41[j].total,
-                global_worker_stat->stat_req.stat_op_nfs41[j].success,
-                global_worker_stat->stat_req.stat_op_nfs41[j].failed);
-      fprintf(stats_file, "\n");
+      dump_op_stats(stats_file, "NFS V4.1 OPERATIONS", strdate,
+                    global_worker_stat->stat_req.nb_nfs41_op,
+                    global_worker_stat->stat_req.stat_op_nfs41,
+                    NFS_V41_NB_OPERATION);
 
-      fprintf(stats_file, "NLM V4 REQUEST,%s;%u", strdate,
-              global_worker_stat->stat_req.nb_nlm4_req);
-      for(j = 0; j < NLM_V4_NB_OPERATION; j++)
-        fprintf(stats_file, "|%u,%u,%u",
-                global_worker_stat->stat_req.stat_req_nlm4[j].total,
-                global_worker_stat->stat_req.stat_req_nlm4[j].success,
-                global_worker_stat->stat_req.stat_req_nlm4[j].dropped);
-      fprintf(stats_file, "\n");
+      dump_req_stats(stats_file, "NLM V4 REQUEST,%s;%u", strdate,
+                     global_worker_stat->stat_req.nb_nlm4_req,
+                     global_worker_stat->stat_req.stat_req_nlm4,
+                     NLM_V4_NB_OPERATION);
 
-      fprintf(stats_file, "RQUOTA V1 REQUEST,%s;%u", strdate,
-              global_worker_stat->stat_req.nb_rquota1_req);
-      for(j = 0; j < RQUOTA_NB_COMMAND; j++)
-        fprintf(stats_file, "|%u,%u,%u",
-                global_worker_stat->stat_req.stat_req_rquota1[j].total,
-                global_worker_stat->stat_req.stat_req_rquota1[j].success,
-                global_worker_stat->stat_req.stat_req_rquota1[j].dropped);
-      fprintf(stats_file, "\n");
+      dump_req_stats(stats_file, "RQUOTA V1 REQUEST", strdate,
+                     global_worker_stat->stat_req.nb_rquota1_req,
+                     global_worker_stat->stat_req.stat_req_rquota1,
+                     RQUOTA_NB_COMMAND);
 
-      fprintf(stats_file, "RQUOTA V2 REQUEST,%s;%u", strdate,
-              global_worker_stat->stat_req.nb_rquota2_req);
-      for(j = 0; j < RQUOTA_NB_COMMAND; j++)
-        fprintf(stats_file, "|%u,%u,%u",
-                global_worker_stat->stat_req.stat_req_rquota2[j].total,
-                global_worker_stat->stat_req.stat_req_rquota2[j].success,
-                global_worker_stat->stat_req.stat_req_rquota2[j].dropped);
-      fprintf(stats_file, "\n");
+      dump_req_stats(stats_file, "RQUOTA V2 REQUEST", strdate,
+                     global_worker_stat->stat_req.nb_rquota2_req,
+                     global_worker_stat->stat_req.stat_req_rquota2,
+                     RQUOTA_NB_COMMAND);
 
       fprintf(stats_file,
               "DUP_REQ_HASH,%s;%zu,%zu,%zu,%zu\n",
@@ -547,7 +475,7 @@ void *stats_thread(void *UnusedArg)
               uid_map_hstat->max_rbt_num_node,
               uid_map_hstat->average_rbt_num_node);
       fprintf(stats_file,
-              "UNAMEMAP_HASH,%s;%zu,%zu,%zu,%zu",
+              "UNAMEMAP_HASH,%s;%zu,%zu,%zu,%zu\n",
               strdate, hstat_uid_reverse->entries,
               hstat_uid_reverse->min_rbt_num_node,
               hstat_uid_reverse->max_rbt_num_node,
