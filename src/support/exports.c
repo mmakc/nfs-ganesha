@@ -273,11 +273,9 @@ int nfs_LookupNetworkAddr(char *host,   /* [IN] host/address specifier */
   /* BE CAREFUL !! The following lines are specific to IPv4. The libcidr support IPv6 as well */
   memset( netAddr, 0, sizeof( unsigned long ) ) ;
   memcpy( netAddr, &pcidr->addr[12], 4 ) ;
-  *netAddr = ntohl( *netAddr ) ;
 
   memset( netMask, 0, sizeof( unsigned long ) ) ;
   memcpy( netMask, &pcidr->mask[12], 4 ) ;
-  *netMask = ntohl( *netMask ) ;
 
   return 0 ; 
 } /* nfs_LookupNetworkAddr */
@@ -462,6 +460,8 @@ int nfs_AddClientsToClientList(exportlist_client_t * clients,
   for(i = 0; i < new_clients_number; i++)
     {
       client_hostname = new_clients_name[i];
+      char addrbuf[sizeof("255.255.255.255")];
+      char maskbuf[sizeof("255.255.255.255")];
 
       /* Allocate a new export client entry */
       p_client = gsh_calloc(1, sizeof(exportlist_client_entry_t));
@@ -509,17 +509,13 @@ int nfs_AddClientsToClientList(exportlist_client_t * clients,
           p_client->type = NETWORK_CLIENT;
 
           LogDebug(COMPONENT_CONFIG,
-                   "entry %d %p: %s to network %s = %d.%d.%d.%d netmask = %d.%d.%d.%d",
+                   "entry %d %p: %s to network %s = %s netmask = %s",
                    i, p_client, var_name,
                    client_hostname,
-                   (int)(ntohl(p_client->client.network.netaddr) >> 24),
-                   (int)((ntohl(p_client->client.network.netaddr) >> 16) & 0xFF),
-                   (int)((ntohl(p_client->client.network.netaddr) >> 8) & 0xFF),
-                   (int)(ntohl(p_client->client.network.netaddr) & 0xFF),
-                   (int)(ntohl(p_client->client.network.netmask) >> 24),
-                   (int)((ntohl(p_client->client.network.netmask) >> 16) & 0xFF),
-                   (int)((ntohl(p_client->client.network.netmask) >> 8) & 0xFF),
-                   (int)(ntohl(p_client->client.network.netmask) & 0xFF));
+                   inet_ntop(AF_INET, &p_client->client.network.netaddr,
+                             addrbuf, sizeof(addrbuf)),
+                   inet_ntop(AF_INET, &p_client->client.network.netmask,
+                             maskbuf, sizeof(maskbuf)));
         }
       else if( getaddrinfo(client_hostname, NULL, NULL, &info) == 0)
         {
@@ -531,13 +527,11 @@ int nfs_AddClientsToClientList(exportlist_client_t * clients,
                      sizeof(struct in_addr));
               p_client->type = HOSTIF_CLIENT;
               LogDebug(COMPONENT_CONFIG,
-                       "entry %d %p: %s to client %s = %d.%d.%d.%d",
+                       "entry %d %p: %s to client %s = %s",
                        i, p_client, var_name,
                        client_hostname, 
-                       (int)(ntohl(p_client->client.hostif.clientaddr) >> 24),
-                       (int)((ntohl(p_client->client.hostif.clientaddr) >> 16) & 0xFF),
-                       (int)((ntohl(p_client->client.hostif.clientaddr) >> 8) & 0xFF),
-                       (int)(ntohl(p_client->client.hostif.clientaddr) & 0xFF));
+                       inet_ntop(AF_INET, &p_client->client.hostif.clientaddr,
+                                 addrbuf, sizeof(addrbuf)));
             }
           else /* AF_INET6 */
             {
@@ -3010,6 +3004,29 @@ int ReadExports(config_file_t in_config,        /* The file that contains the ex
     return nb_entries;
 }
 
+static const char *
+cidr_net(unsigned int addr, unsigned int netmask, char *buf, socklen_t len)
+{
+        unsigned int rb = ntohl(netmask);
+        int bitcnt = 33;
+
+        if (inet_ntop(AF_INET, &addr, buf, len) == NULL)
+                return "???";
+
+        /* Get the rightmost non-zero bit */
+        rb &= - rb;
+        if(!rb) {
+                bitcnt = 0;
+        } else while (rb) {
+                rb >>= 1;
+                bitcnt--;
+        }
+
+        rb = strlen(buf);
+        snprintf(buf+rb, len - rb, "/%d", bitcnt);
+        return buf;
+}
+
 /**
  * function for matching a specific option in the client export list.
  */
@@ -3073,6 +3090,8 @@ static int export_client_match(sockaddr_t *hostaddr,
   glist_for_each(glist, &clients->client_list)
     {
        exportlist_client_entry_t * p_client;
+       char addrbuf[sizeof("255.255.255.255")]; 
+       char patbuf[sizeof("255.255.255.255/32")]; 
        p_client = glist_entry(glist, exportlist_client_entry_t, cle_list);
        i++;
 
@@ -3084,16 +3103,11 @@ static int export_client_match(sockaddr_t *hostaddr,
         {
         case HOSTIF_CLIENT:
           LogFullDebug(COMPONENT_DISPATCH,
-                       "Test HOSTIF_CLIENT: Test entry %d: clientaddr %d.%d.%d.%d, match with %d.%d.%d.%d",
+                       "Test HOSTIF_CLIENT: Test entry %d: %s vs %s",
                        i,
-                       (int)(ntohl(p_client->client.hostif.clientaddr) >> 24),
-                       (int)((ntohl(p_client->client.hostif.clientaddr) >> 16) & 0xFF),
-                       (int)((ntohl(p_client->client.hostif.clientaddr) >> 8) & 0xFF),
-                       (int)(ntohl(p_client->client.hostif.clientaddr) & 0xFF),
-                       (int)(ntohl(addr) >> 24),
-                       (int)(ntohl(addr) >> 16) & 0xFF,
-                       (int)(ntohl(addr) >> 8) & 0xFF,
-                       (int)(ntohl(addr) & 0xFF));
+                       inet_ntop(AF_INET, &p_client->client.hostif.clientaddr,
+                                 patbuf, sizeof(patbuf)),
+                       inet_ntop(AF_INET, &addr, addrbuf, sizeof(addrbuf)));
           if(p_client->client.hostif.clientaddr == addr)
             {
               LogFullDebug(COMPONENT_DISPATCH,
@@ -3106,21 +3120,13 @@ static int export_client_match(sockaddr_t *hostaddr,
 
         case NETWORK_CLIENT:
           LogFullDebug(COMPONENT_DISPATCH,
-                       "Test NETWORK_CLIENT: Test net %d.%d.%d.%d mask %d.%d.%d.%d, match with %d.%d.%d.%d",
-                       (int)(ntohl(p_client->client.network.netaddr) >> 24),
-                       (int)((ntohl(p_client->client.network.netaddr) >> 16) & 0xFF),
-                       (int)((ntohl(p_client->client.network.netaddr) >> 8) & 0xFF),
-                       (int)(ntohl(p_client->client.network.netaddr) & 0xFF),
-                       (int)(ntohl(p_client->client.network.netmask) >> 24),
-                       (int)((ntohl(p_client->client.network.netmask) >> 16) & 0xFF),
-                       (int)((ntohl(p_client->client.network.netmask) >> 8) & 0xFF),
-                       (int)(ntohl(p_client->client.network.netmask) & 0xFF),
-                       (int)(ntohl(addr) >> 24),
-                       (int)(ntohl(addr) >> 16) & 0xFF,
-                       (int)(ntohl(addr) >> 8) & 0xFF,
-                       (int)(ntohl(addr) & 0xFF));
+                       "Test NETWORK_CLIENT: Test net %s vs %s",
+                       cidr_net(p_client->client.network.netaddr,
+                                p_client->client.network.netmask,
+                                patbuf, sizeof(patbuf)),
+                       inet_ntop(AF_INET, &addr, addrbuf, sizeof(addrbuf)));
 
-          if((p_client->client.network.netmask & ntohl(addr)) ==
+          if((p_client->client.network.netmask & addr) ==
              p_client->client.network.netaddr)
             {
               LogFullDebug(COMPONENT_DISPATCH,
@@ -3188,11 +3194,9 @@ static int export_client_match(sockaddr_t *hostaddr,
                     {
                       /* Major failure, name could not be resolved */
                       LogInfo(COMPONENT_DISPATCH,
-                              "Could not resolve hostame for addr %d.%d.%d.%d ... not checking if a hostname wildcard matches",
-                              (int)(ntohl(addr) & 0xFF),
-                              (int)(ntohl(addr) >> 8) & 0xFF,
-                              (int)(ntohl(addr) >> 16) & 0xFF,
-                              (int)(ntohl(addr) >> 24));
+                              "Could not resolve hostame for addr %s... not checking if a hostname wildcard matches",
+                              inet_ntop(AF_INET, &addr,
+                                        addrbuf, sizeof(addrbuf)));
                       break;
                     }
                 }
