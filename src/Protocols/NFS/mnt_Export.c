@@ -140,15 +140,10 @@ int mnt_Export(nfs_arg_t *parg,
             {
               exportlist_client_entry_t * p_client_entry;
               p_client_entry = glist_entry(glist_cl, exportlist_client_entry_t, cle_list);
+              char *grnam;
 
               LogClientListEntry(COMPONENT_NFSPROTO, p_client_entry);
 
-              /* ---- gr_next ----- */
-
-              if((i + 1) == p_clients->num_clients)     /* this is the last item */
-                new_expnode->ex_groups[i].gr_next = NULL;
-              else              /* other items point to the next memory slot */
-                new_expnode->ex_groups[i].gr_next = &(new_expnode->ex_groups[i + 1]);
 
               /* ---- gr_name ----- */
 
@@ -157,135 +152,89 @@ int mnt_Export(nfs_arg_t *parg,
                 case HOSTIF_CLIENT:
 
                   /* allocates target buffer (+1 for security ) */
-                  new_expnode->ex_groups[i].gr_name
-                       = gsh_calloc(1, INET_ADDRSTRLEN + 1);
+                  grnam = gsh_malloc(INET_ADDRSTRLEN + 1);
+                  if(grnam == NULL)
+                    break;
 
-                  if(new_expnode->ex_groups[i].gr_name == NULL)
+                  if(inet_ntop(AF_INET,
+                               &(p_client_entry->client.hostif.clientaddr),
+                               grnam, INET_ADDRSTRLEN) == NULL)
                     {
-                      LogCrit(COMPONENT_NFSPROTO,
-                              "Could not allocate memory for response");
-                      break;
-                    }
-
-                  if(inet_ntop
-                     (AF_INET, &(p_client_entry->client.hostif.clientaddr),
-                      new_expnode->ex_groups[i].gr_name, INET_ADDRSTRLEN) == NULL)
-                    {
-                      strncpy(new_expnode->ex_groups[i].gr_name, "Invalid Host address",
-                              INET_ADDRSTRLEN);
+                      strncpy(grnam, "???", INET_ADDRSTRLEN);
                     }
 
                   LogFullDebug(COMPONENT_NFSPROTO,
                                "%p HOSTIF_CLIENT=%s",
-                               p_client_entry, new_expnode->ex_groups[i].gr_name);
+                               p_client_entry, grnam);
 
                   break;
 
                 case NETWORK_CLIENT:
 
-                  /* allocates target buffer (+1 for security ) */
-                  new_expnode->ex_groups[i].gr_name
-                       = gsh_calloc(1, INET_ADDRSTRLEN + 1);
+                  grnam = gsh_malloc(2*INET_ADDRSTRLEN + 2);
+                  if(grnam == NULL)
+                    break;
 
-                  if(new_expnode->ex_groups[i].gr_name == NULL)
+                  if(inet_ntop(AF_INET,
+                               &(p_client_entry->client.network.netaddr),
+                               grnam, INET_ADDRSTRLEN) == NULL)
                     {
-                      LogCrit(COMPONENT_NFSPROTO,
-                              "Could not allocate memory for response");
-                      break;
+                      strcpy(grnam, "???");
                     }
-
-                  if(inet_ntop
-                     (AF_INET, &(p_client_entry->client.network.netaddr),
-                      new_expnode->ex_groups[i].gr_name, INET_ADDRSTRLEN) == NULL)
+                  strcat(grnam, "/");
+                  if(inet_ntop(AF_INET,
+                               &p_client_entry->client.network.netmask,
+                               grnam + strlen(grnam), INET_ADDRSTRLEN) == NULL)
                     {
-                      strncpy(new_expnode->ex_groups[i].gr_name,
-                              "Invalid Network address", MAXHOSTNAMELEN);
+                      strcat(grnam, "???");
                     }
                   break;
 
                 case NETGROUP_CLIENT:
-
-                  /* allocates target buffer */
-
-                  new_expnode->ex_groups[i].gr_name
-                       = gsh_strdup(p_client_entry->client.netgroup.netgroupname);
-
-                  if(new_expnode->ex_groups[i].gr_name == NULL)
-                    {
-                      LogCrit(COMPONENT_NFSPROTO,
-                              "Could not allocate memory for response");
-                      break;
-                    }
+                  grnam = gsh_strdup(p_client_entry->client.netgroup.netgroupname);
                   break;
 
                 case WILDCARDHOST_CLIENT:
-
-                  /* allocates target buffer */
-                  new_expnode->ex_groups[i].gr_name
-                       = gsh_strdup(p_client_entry->client.wildcard.wildcard);
-
-                  if(new_expnode->ex_groups[i].gr_name == NULL)
-                    {
-                      LogCrit(COMPONENT_NFSPROTO,
-                              "Could not allocate memory for response");
-                      break;
-                    }
+                  grnam = gsh_strdup(p_client_entry->client.wildcard.wildcard);
                   break;
 
                 case GSSPRINCIPAL_CLIENT:
-
-                  new_expnode->ex_groups[i].gr_name
-                       = gsh_strdup(p_client_entry->client.gssprinc.princname);
-
-
-                  if(new_expnode->ex_groups[i].gr_name == NULL)
-                    {
-                      LogCrit(COMPONENT_NFSPROTO,
-                              "Could not allocate memory for response");
-                      break;
-                    }
+                  grnam = gsh_strdup(p_client_entry->client.gssprinc.princname);
                   break;
 
                 case MATCH_ANY_CLIENT:
-                  new_expnode->ex_groups[i].gr_name
-                       = gsh_strdup("*");
-
-                  if(new_expnode->ex_groups[i].gr_name == NULL)
-                    {
-                      LogCrit(COMPONENT_NFSPROTO,
-                              "Could not allocate memory for response");
-                      break;
-                    }
+                  grnam = gsh_strdup("*");
                   break;
 
                 default:
 
                   /* @todo : free allocated resources */
-
                   LogCrit(COMPONENT_NFSPROTO,
                           "MNT_EXPORT: Unknown export entry type: %d",
                           p_client_entry->type);
-
-                  new_expnode->ex_groups[i].gr_name = gsh_strdup("<unknown>");
-
-                  if(new_expnode->ex_groups[i].gr_name == NULL)
-                    {
-                      LogCrit(COMPONENT_NFSPROTO,
-                              "Could not allocate memory for response");
-                      break;
-                    }
-
+                  grnam = gsh_strdup("<unknown>");
                   break;
                 }
 
-              i++;
+              if(grnam == NULL)
+                {
+                  LogCrit(COMPONENT_NFSPROTO,
+                          "Could not allocate memory for response");
+                }
+              else
+                {
+                  new_expnode->ex_groups[i].gr_name = grnam;
+                  new_expnode->ex_groups[i].gr_next = new_expnode->ex_groups + i + 1;
+                  i++;
+                }
             }
+          if(i > 0)
+            new_expnode->ex_groups[i-1].gr_next = NULL;
         }
       else
         {
           /* There are no groups for this export entry. */
           new_expnode->ex_groups = NULL;
-
         }
 
       /* ---- ex_next ----- */
