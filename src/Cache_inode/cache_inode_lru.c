@@ -559,11 +559,14 @@ static const uint32_t MS_NSECS = 1000000UL; /* nsecs in 1ms */
 static bool
 lru_thread_delay_ms(unsigned long ms)
 {
-     struct timespec ts;
+     time_t now = time(NULL);
+     uint64_t nsecs = (S_NSECS * now) + (MS_NSECS * ms);
+     struct timespec ts = {
+          .tv_sec = nsecs / S_NSECS,
+          .tv_nsec = nsecs % S_NSECS
+     };
      bool woke;
 
-     clock_gettime(CLOCK_MONOTONIC, &ts);
-     timespec_addms(&ts, ms);
 
      pthread_mutex_lock(&lru_mtx);
      lru_thread_state.flags |= LRU_SLEEPING;
