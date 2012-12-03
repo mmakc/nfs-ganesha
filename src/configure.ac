@@ -771,7 +771,6 @@ AC_CONFIG_FILES([include/Makefile
                  include/FSAL/FSAL_POSIX/Makefile
                  include/FSAL/FSAL_FUSELIKE/Makefile
                  include/FSAL/FSAL_LUSTRE/Makefile
-                 include/FSAL/FSAL_XFS/Makefile
                  include/FSAL/FSAL_GPFS/Makefile
                  include/FSAL/FSAL_ZFS/Makefile
                  Common/Makefile
